@@ -1,5 +1,6 @@
 import React from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import Svg, { Circle, Line } from 'react-native-svg';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -24,6 +25,8 @@ const mockData = [
   { date: 'Feb 24', score: 78 },
   { date: 'Mar 12', score: 80 },
   { date: 'Apr 5', score: 83 },
+  { date: 'Apr 20', score: 79 },
+  { date: 'May 8', score: 85 },
 ];
 
 const ProgressBar = ({ title, value }: { title: string; value: number }) => {
@@ -42,6 +45,72 @@ const ProgressBar = ({ title, value }: { title: string; value: number }) => {
             { width: `${value}%`, backgroundColor: scoreColor }
           ]} 
         />
+      </View>
+    </View>
+  );
+};
+
+// LineChart component
+const LineChart = ({ data }: { data: Array<{ date: string; score: number }> }) => {
+  const { width } = Dimensions.get('window');
+  const chartWidth = width - 64; // Accounting for container padding
+  const chartHeight = 180;
+  const paddingBottom = 30; // Space for date labels
+  
+  // Calculate x positions for each data point
+  const pointGap = chartWidth / (data.length - 1);
+  
+  // Calculate data points
+  const points = data.map((item, index) => ({
+    x: index * pointGap,
+    y: chartHeight - (item.score / 100) * (chartHeight - paddingBottom),
+    score: item.score,
+    date: item.date,
+    // Determine if score increased or decreased from previous
+    direction: index > 0 ? (item.score > data[index - 1].score ? 'up' : 
+                           (item.score < data[index - 1].score ? 'down' : 'same')) : 'same'
+  }));
+
+  return (
+    <View style={styles.chartWrapper}>
+      <Svg height={chartHeight} width={chartWidth}>
+        {/* Connect points with white lines */}
+        {points.map((point, index) => {
+          if (index === 0) return null;
+          const prevPoint = points[index - 1];
+          return (
+            <Line
+              key={`line-${index}`}
+              x1={prevPoint.x}
+              y1={prevPoint.y}
+              x2={point.x}
+              y2={point.y}
+              stroke="rgba(255,255,255,0.6)"
+              strokeWidth="2"
+            />
+          );
+        })}
+        
+        {/* Draw points (red for decrease, green for increase) */}
+        {points.map((point, index) => (
+          <Circle
+            key={`point-${index}`}
+            cx={point.x}
+            cy={point.y}
+            r={6}
+            fill={point.direction === 'down' ? '#FF3B30' : 
+                 point.direction === 'up' ? '#4CD964' : '#FFFFFF'}
+          />
+        ))}
+      </Svg>
+      
+      {/* Date labels */}
+      <View style={styles.dateLabelsContainer}>
+        {points.map((point, index) => (
+          <ThemedText key={`date-${index}`} style={[styles.dateLabel, { left: point.x - 20 }]}>
+            {point.date}
+          </ThemedText>
+        ))}
       </View>
     </View>
   );
@@ -87,22 +156,10 @@ export default function ProgressScreen() {
           </View>
         </View>
 
-        {/* Progress Chart Section - Simple visualization */}
+        {/* Progress Chart Section - Line chart */}
         <View style={styles.chartContainer}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>Progress Chart</ThemedText>
-          <View style={styles.chartContent}>
-            {mockData.map((point, index) => (
-              <View key={index} style={styles.chartBar}>
-                <View 
-                  style={[
-                    styles.chartBarFill, 
-                    { height: `${point.score}%`, backgroundColor: getScoreColor(point.score) }
-                  ]} 
-                />
-                <ThemedText style={styles.chartLabel}>{point.date}</ThemedText>
-              </View>
-            ))}
-          </View>
+          <LineChart data={mockData} />
         </View>
 
         {/* Body Areas Section */}
@@ -195,32 +252,28 @@ const styles = StyleSheet.create({
   },
   chartContainer: {
     marginBottom: 24,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 16,
+    padding: 16,
   },
   sectionTitle: {
     marginBottom: 16,
   },
-  chartContent: {
-    height: 180,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    paddingVertical: 10,
-  },
-  chartBar: {
-    flex: 1,
-    height: '100%',
-    justifyContent: 'flex-end',
+  chartWrapper: {
+    height: 210,
     alignItems: 'center',
-    marginHorizontal: 4,
   },
-  chartBarFill: {
-    width: 8,
-    borderRadius: 4,
+  dateLabelsContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 20,
   },
-  chartLabel: {
+  dateLabel: {
+    position: 'absolute',
     fontSize: 10,
-    marginTop: 5,
     opacity: 0.7,
+    textAlign: 'center',
+    width: 40,
   },
   bodyAreasContainer: {
     marginBottom: 24,

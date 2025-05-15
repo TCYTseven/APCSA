@@ -60,10 +60,10 @@ const RatingBar = ({ name, rating }: { name: string; rating: number }) => {
 };
 
 // Component for profile settings
-const SettingsItem = ({ icon, text, onPress }: { icon: string; text: string; onPress: () => void }) => {
+const SettingsItem = ({ icon, text, onPress }: { icon?: string; text: string; onPress: () => void }) => {
   return (
     <TouchableOpacity style={styles.settingsItem} onPress={onPress}>
-      <ThemedText style={styles.settingsIcon}>{icon}</ThemedText>
+      {icon && <ThemedText style={styles.settingsIcon}>{icon}</ThemedText>}
       <ThemedText style={styles.settingsText}>{text}</ThemedText>
     </TouchableOpacity>
   );
@@ -99,25 +99,6 @@ export default function ProfileScreen() {
 
   const handleSettings = () => {
     Alert.alert("Settings", "This would open app settings.");
-  };
-
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      "Delete Account",
-      "Are you sure you want to delete your account? This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Delete", 
-          style: "destructive",
-          onPress: () => {
-            // Delete account logic would go here
-            Alert.alert("Account Deleted", "Your account has been deleted successfully.");
-            // This would navigate to login screen in a real app
-          }
-        }
-      ]
-    );
   };
 
   return (
@@ -161,25 +142,17 @@ export default function ProfileScreen() {
           <ThemedText type="subtitle" style={styles.sectionTitle}>Account</ThemedText>
           
           <SettingsItem 
-            icon="🔄" 
             text="Share Profile" 
             onPress={handleShareProfile}
           />
           
           <SettingsItem 
-            icon="⚙️" 
             text="Settings & Privacy" 
             onPress={handleSettings}
           />
           
-          <SettingsItem 
-            icon="🚪" 
-            text="Logout" 
-            onPress={handleLogout}
-          />
-          
-          <TouchableOpacity style={styles.deleteAccountButton} onPress={handleDeleteAccount}>
-            <ThemedText style={styles.deleteAccountText}>Delete Account</ThemedText>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <ThemedText style={styles.logoutButtonText}>Log Out</ThemedText>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -301,16 +274,15 @@ const styles = StyleSheet.create({
   settingsText: {
     fontSize: 16,
   },
-  deleteAccountButton: {
+  logoutButton: {
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 8,
     borderWidth: 1,
-    borderColor: '#FF3B30',
+    borderColor: 'rgba(255,255,255,0.3)',
   },
-  deleteAccountText: {
-    color: '#FF3B30',
+  logoutButtonText: {
     fontWeight: 'bold',
   },
 }); 
