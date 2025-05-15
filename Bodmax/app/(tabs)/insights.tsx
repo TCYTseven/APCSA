@@ -25,19 +25,11 @@ const insights = [
   }
 ];
 
-const FocusArea = ({ title, description, percentage }: { title: string; description: string; percentage: number }) => {
-  const colorScheme = useColorScheme();
-  const accentColor = Colors[colorScheme ?? 'dark'].tint;
-  
+const FocusArea = ({ title, description }: { title: string; description: string }) => {
   return (
     <View style={styles.focusAreaContainer}>
       <View style={styles.focusAreaHeader}>
         <ThemedText style={styles.focusAreaTitle}>{title}</ThemedText>
-        <View style={styles.percentageContainer}>
-          <ThemedText style={[styles.percentageText, { color: accentColor }]}>
-            {percentage}%
-          </ThemedText>
-        </View>
       </View>
       <ThemedText style={styles.focusAreaDescription}>{description}</ThemedText>
     </View>
@@ -56,11 +48,7 @@ export default function InsightsScreen() {
         {/* Latest Analysis Summary */}
         <View style={styles.summaryContainer}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>Latest Analysis</ThemedText>
-          <View style={styles.scorecardContainer}>
-            <View style={styles.scoreCircle}>
-              <ThemedText style={styles.scoreText}>8.3</ThemedText>
-              <ThemedText style={styles.scoreLabel}>Overall</ThemedText>
-            </View>
+          <View style={styles.analysisContainer}>
             <ThemedText style={styles.analysisSummary}>
               Your physique is well-balanced with good symmetry. There's potential for further improvement in lower body development.
             </ThemedText>
@@ -90,20 +78,17 @@ export default function InsightsScreen() {
           
           <FocusArea 
             title="Leg Training" 
-            description="Increase quad and hamstring development with higher volume training."
-            percentage={85}
+            description="Increase quad and hamstring development with higher volume training. Focus on compound movements like squats and Romanian deadlifts to stimulate growth."
           />
           
           <FocusArea 
             title="Back Width" 
-            description="Focus on increasing overall back width with pull-ups and wide-grip rows."
-            percentage={70}
+            description="Focus on increasing overall back width with pull-ups and wide-grip rows. Add in progressive overload by increasing volume or weight each week."
           />
           
           <FocusArea 
             title="Arms Proportion" 
-            description="Develop triceps further to balance arm proportion."
-            percentage={60}
+            description="Develop triceps further to balance arm proportion. Include exercises like close-grip bench press, dips, and overhead extensions for complete triceps development."
           />
         </View>
         
@@ -139,33 +124,12 @@ const styles = StyleSheet.create({
   summaryContainer: {
     marginBottom: 24,
   },
-  scorecardContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  analysisContainer: {
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 16,
     padding: 16,
   },
-  scoreCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(156, 71, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  scoreText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#9C47FF',
-  },
-  scoreLabel: {
-    fontSize: 12,
-    opacity: 0.7,
-  },
   analysisSummary: {
-    flex: 1,
     lineHeight: 20,
   },
   insightsContainer: {
@@ -219,16 +183,6 @@ const styles = StyleSheet.create({
   },
   focusAreaTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-  },
-  percentageContainer: {
-    backgroundColor: 'rgba(156, 71, 255, 0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  percentageText: {
-    fontSize: 14,
     fontWeight: 'bold',
   },
   focusAreaDescription: {

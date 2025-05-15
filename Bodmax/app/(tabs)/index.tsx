@@ -1,27 +1,31 @@
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Dimensions, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-
-const MAX_IMAGES = 5;
 
 export default function ScanScreen() {
   const colorScheme = useColorScheme();
-  const [images, setImages] = useState<string[]>([]);
+  const [selectedTab, setSelectedTab] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
-  const pickImage = async () => {
-    if (images.length >= MAX_IMAGES) {
-      Alert.alert("Maximum Images", "You can only select up to 5 images.");
-      return;
-    }
+  const handleBeginScan = () => {
+    setIsLoading(true);
+    
+    // Simulate analysis process
+    setTimeout(() => {
+      setIsLoading(false);
+      // Navigate to insights page after analysis
+      router.push('/insights');
+    }, 2000);
+  };
 
+  const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -30,176 +34,144 @@ export default function ScanScreen() {
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      setImages([...images, result.assets[0].uri]);
+      // Handle the selected image
+      handleBeginScan();
     }
-  };
-
-  const removeImage = (index: number) => {
-    const newImages = [...images];
-    newImages.splice(index, 1);
-    setImages(newImages);
-  };
-
-  const handleSubmit = () => {
-    if (images.length === 0) {
-      Alert.alert("Missing Image", "Please select at least 1 image to analyze.");
-      return;
-    }
-
-    setIsLoading(true);
-    
-    // Simulate analysis process
-    setTimeout(() => {
-      setIsLoading(false);
-      // Navigate to insights page after analysis
-      router.push('/insights');
-    }, 3000);
   };
 
   return (
     <ThemedView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <ThemedText type="title" style={styles.title}>Physique Analysis</ThemedText>
-        <ThemedText style={styles.subtitle}>
-          Upload up to 5 photos of your physique for AI analysis
-        </ThemedText>
-
-        <View style={styles.imageGrid}>
-          {images.map((uri, index) => (
-            <View key={index} style={styles.imageContainer}>
-              <Image source={{ uri }} style={styles.previewImage} />
-              <TouchableOpacity
-                style={styles.removeButton}
-                onPress={() => removeImage(index)}>
-                <ThemedText style={styles.removeButtonText}>✕</ThemedText>
-              </TouchableOpacity>
-            </View>
-          ))}
+      <ThemedText type="title" style={styles.title}>BodMax</ThemedText>
+      
+      <View style={styles.cardContainer}>
+        <View style={styles.card}>
+          <View style={styles.imageContainer}>
+            {/* Silhouette Image */}
+            <Image
+              source={require('@/assets/images/body-silhouette.png')}
+              style={styles.bodyImage}
+              contentFit="contain"
+            />
+          </View>
           
-          {images.length < MAX_IMAGES && (
-            <TouchableOpacity style={styles.addButton} onPress={pickImage}>
-              <ThemedText style={styles.addButtonText}>+</ThemedText>
+          <View style={styles.contentContainer}>
+            <ThemedText style={styles.heading}>Physique Analysis</ThemedText>
+            <ThemedText style={styles.subheading}>
+              Get your ratings and recommendations
+            </ThemedText>
+            
+            <TouchableOpacity
+              style={styles.scanButton}
+              onPress={pickImage}
+              disabled={isLoading}>
+              <LinearGradient
+                colors={['#8844ee', '#6622cc']}
+                style={styles.gradient}>
+                <ThemedText style={styles.buttonText}>
+                  {isLoading ? "Processing..." : "Begin scan"}
+                </ThemedText>
+              </LinearGradient>
             </TouchableOpacity>
-          )}
+          </View>
+          
+          <View style={styles.pagination}>
+            <View style={[styles.dot, selectedTab === 0 && styles.activeDot]} />
+            <View style={[styles.dot, selectedTab === 1 && styles.activeDot]} />
+            <View style={[styles.dot, selectedTab === 2 && styles.activeDot]} />
+          </View>
         </View>
-
-        <View style={styles.guidelinesContainer}>
-          <ThemedText type="subtitle" style={styles.guidelinesTitle}>
-            Photo Guidelines:
-          </ThemedText>
-          <ThemedText style={styles.guidelineItem}>• Bright, even lighting</ThemedText>
-          <ThemedText style={styles.guidelineItem}>• Full-body visible in frame</ThemedText>
-          <ThemedText style={styles.guidelineItem}>• Plain/neutral background</ThemedText>
-        </View>
-
-        <TouchableOpacity
-          style={[
-            styles.submitButton,
-            isLoading && styles.disabledButton,
-            { backgroundColor: Colors[colorScheme ?? 'dark'].tint }
-          ]}
-          onPress={handleSubmit}
-          disabled={isLoading}>
-          <ThemedText style={styles.submitButtonText}>
-            {isLoading ? "Analyzing..." : "Analyze My Physique"}
-          </ThemedText>
-        </TouchableOpacity>
-      </ScrollView>
+      </View>
     </ThemedView>
   );
 }
 
+const { width, height } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
-  },
-  scrollContent: {
-    paddingBottom: 30,
+    backgroundColor: '#121212',
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    textAlign: 'center',
-    marginTop: 60,
-    marginBottom: 8,
+    textAlign: 'left',
+    marginTop: 50,
+    marginLeft: 24,
+    marginBottom: 20,
   },
-  subtitle: {
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  imageGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  cardContainer: {
+    flex: 1,
+    alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+  },
+  card: {
+    width: '100%',
+    height: height * 0.65,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: '#1c1c1c',
   },
   imageContainer: {
-    width: 120,
-    height: 160,
-    margin: 8,
-    borderRadius: 12,
-    overflow: 'hidden',
-    position: 'relative',
+    height: '65%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#1c1c1c',
   },
-  previewImage: {
+  bodyImage: {
     width: '100%',
     height: '100%',
   },
-  removeButton: {
-    position: 'absolute',
-    top: 5,
-    right: 5,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
+  contentContainer: {
+    padding: 24,
     alignItems: 'center',
   },
-  removeButtonText: {
-    color: 'white',
-    fontSize: 14,
-  },
-  addButton: {
-    width: 120,
-    height: 160,
-    margin: 8,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: '#666',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addButtonText: {
-    fontSize: 40,
-    fontWeight: '300',
-    color: '#666',
-  },
-  guidelinesContainer: {
-    marginBottom: 24,
-    alignItems: 'center',
-  },
-  guidelinesTitle: {
+  heading: {
+    fontSize: 24,
+    fontWeight: 'bold',
     marginBottom: 8,
+    textAlign: 'center',
   },
-  guidelineItem: {
-    marginBottom: 6,
+  subheading: {
+    fontSize: 16,
+    color: '#aaa',
+    textAlign: 'center',
+    marginBottom: 20,
   },
-  submitButton: {
+  scanButton: {
+    width: '100%',
     height: 56,
     borderRadius: 28,
+    overflow: 'hidden',
+    marginTop: 4,
+  },
+  gradient: {
+    width: '100%',
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
   },
-  submitButtonText: {
+  buttonText: {
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
   },
-  disabledButton: {
-    opacity: 0.7,
+  pagination: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 20,
+    gap: 8,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#555',
+  },
+  activeDot: {
+    backgroundColor: '#fff',
   },
 });

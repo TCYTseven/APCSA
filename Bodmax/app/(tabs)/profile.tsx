@@ -7,19 +7,30 @@ import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
-// Mock user data
+// Helper function to get color based on score
+const getScoreColor = (score: number): string => {
+  if (score >= 90) return '#4CD964'; // Green for high scores
+  if (score >= 75) return '#73D945'; // Green-yellow
+  if (score >= 65) return '#A0D636'; // Yellow-green
+  if (score >= 55) return '#FFD60A'; // Yellow
+  if (score >= 45) return '#FFA500'; // Orange
+  if (score >= 35) return '#FF7643'; // Orange-red
+  return '#FF3B30'; // Red for low scores
+};
+
+// Mock user data - converted to 100-based scale
 const userData = {
   name: 'Alex Johnson',
   email: 'alex.johnson@example.com',
   physique: {
-    overall: 8.4,
+    overall: 78,
     ratings: [
-      { name: 'Chest', rating: 8.5 },
-      { name: 'Legs', rating: 7.2 },
-      { name: 'Shoulders', rating: 8.7 },
-      { name: 'Biceps', rating: 8.9 },
-      { name: 'Triceps', rating: 8.3 },
-      { name: 'Back', rating: 7.8 },
+      { name: 'Chest', rating: 82 },
+      { name: 'Legs', rating: 65 },
+      { name: 'Shoulders', rating: 76 },
+      { name: 'Biceps', rating: 84 },
+      { name: 'Triceps', rating: 79 },
+      { name: 'Back', rating: 73 },
     ],
     type: 'Toned',
     streak: 12,
@@ -28,20 +39,19 @@ const userData = {
 
 // Component for the rating bars
 const RatingBar = ({ name, rating }: { name: string; rating: number }) => {
-  const colorScheme = useColorScheme();
-  const accentColor = Colors[colorScheme ?? 'dark'].tint;
+  const scoreColor = getScoreColor(rating);
   
   return (
     <View style={styles.ratingBarContainer}>
       <View style={styles.ratingBarHeader}>
         <ThemedText style={styles.ratingBarName}>{name}</ThemedText>
-        <ThemedText style={styles.ratingValue}>{rating.toFixed(1)}</ThemedText>
+        <ThemedText style={[styles.ratingValue, { color: scoreColor }]}>{rating}</ThemedText>
       </View>
       <View style={styles.ratingBarBg}>
         <View 
           style={[
             styles.ratingBarFill, 
-            { width: `${rating * 10}%`, backgroundColor: accentColor }
+            { width: `${rating}%`, backgroundColor: scoreColor }
           ]} 
         />
       </View>
@@ -64,6 +74,7 @@ export default function ProfileScreen() {
   const accentColor = Colors[colorScheme ?? 'dark'].tint;
   
   const [userPhysique] = useState(userData.physique);
+  const overallScoreColor = getScoreColor(userPhysique.overall);
 
   const handleLogout = () => {
     Alert.alert(
@@ -122,9 +133,9 @@ export default function ProfileScreen() {
           <ThemedText style={styles.userEmail}>{userData.email}</ThemedText>
           
           <View style={styles.overallScoreContainer}>
-            <View style={[styles.overallScoreCircle, { borderColor: accentColor }]}>
-              <ThemedText style={[styles.overallScoreText, { color: accentColor }]}>
-                {userPhysique.overall.toFixed(1)}
+            <View style={[styles.overallScoreCircle, { borderColor: overallScoreColor }]}>
+              <ThemedText style={[styles.overallScoreText, { color: overallScoreColor }]}>
+                {userPhysique.overall}
               </ThemedText>
             </View>
             <ThemedText style={styles.overallScoreLabel}>Overall Rating</ThemedText>
@@ -134,8 +145,8 @@ export default function ProfileScreen() {
         <View style={styles.physiqueContainer}>
           <View style={styles.physiqueHeader}>
             <ThemedText type="subtitle" style={styles.sectionTitle}>Physique Rating</ThemedText>
-            <View style={styles.physiqueTypeContainer}>
-              <ThemedText style={styles.physiqueTypeText}>{userPhysique.type}</ThemedText>
+            <View style={[styles.physiqueTypeContainer, { backgroundColor: `${overallScoreColor}20` }]}>
+              <ThemedText style={[styles.physiqueTypeText, { color: overallScoreColor }]}>{userPhysique.type}</ThemedText>
             </View>
           </View>
           
@@ -236,13 +247,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   physiqueTypeContainer: {
-    backgroundColor: 'rgba(156, 71, 255, 0.2)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
   },
   physiqueTypeText: {
-    color: '#9C47FF',
     fontWeight: 'bold',
     fontSize: 14,
   },
@@ -263,7 +272,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   ratingValue: {
-    opacity: 0.7,
+    fontWeight: '600',
   },
   ratingBarBg: {
     height: 8,

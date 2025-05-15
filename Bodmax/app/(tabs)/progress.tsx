@@ -6,27 +6,40 @@ import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
-// Mock data for progress chart
+// Helper function to get color based on score
+const getScoreColor = (score: number): string => {
+  if (score >= 90) return '#4CD964'; // Green for high scores
+  if (score >= 75) return '#73D945'; // Green-yellow
+  if (score >= 65) return '#A0D636'; // Yellow-green
+  if (score >= 55) return '#FFD60A'; // Yellow
+  if (score >= 45) return '#FFA500'; // Orange
+  if (score >= 35) return '#FF7643'; // Orange-red
+  return '#FF3B30'; // Red for low scores
+};
+
+// Mock data for progress chart - converted to 100-based scale
 const mockData = [
-  { date: 'Jan 15', score: 7.2 },
-  { date: 'Feb 3', score: 7.4 },
-  { date: 'Feb 24', score: 7.8 },
-  { date: 'Mar 12', score: 8.0 },
-  { date: 'Apr 5', score: 8.3 },
+  { date: 'Jan 15', score: 72 },
+  { date: 'Feb 3', score: 74 },
+  { date: 'Feb 24', score: 78 },
+  { date: 'Mar 12', score: 80 },
+  { date: 'Apr 5', score: 83 },
 ];
 
-const ProgressBar = ({ title, value, color }: { title: string; value: number; color: string }) => {
+const ProgressBar = ({ title, value }: { title: string; value: number }) => {
+  const scoreColor = getScoreColor(value);
+  
   return (
     <View style={styles.progressBarContainer}>
       <View style={styles.progressLabelContainer}>
         <ThemedText style={styles.progressLabel}>{title}</ThemedText>
-        <ThemedText style={styles.progressValue}>{value.toFixed(1)}/10</ThemedText>
+        <ThemedText style={[styles.progressValue, { color: scoreColor }]}>{value}/100</ThemedText>
       </View>
       <View style={styles.progressBackground}>
         <View 
           style={[
             styles.progressFill, 
-            { width: `${value * 10}%`, backgroundColor: color }
+            { width: `${value}%`, backgroundColor: scoreColor }
           ]} 
         />
       </View>
@@ -43,6 +56,8 @@ export default function ProgressScreen() {
   const previousScore = mockData[mockData.length - 2].score;
   const improvement = latestScore - previousScore;
   const streakCount = 12; // Mock data
+  
+  const latestScoreColor = getScoreColor(latestScore);
 
   return (
     <ThemedView style={styles.container}>
@@ -52,7 +67,7 @@ export default function ProgressScreen() {
         {/* Current Stats Section */}
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
-            <ThemedText style={styles.statValue}>{latestScore.toFixed(1)}</ThemedText>
+            <ThemedText style={[styles.statValue, { color: latestScoreColor }]}>{latestScore}</ThemedText>
             <ThemedText style={styles.statLabel}>Current Score</ThemedText>
           </View>
           
@@ -66,7 +81,7 @@ export default function ProgressScreen() {
           
           <View style={styles.statCard}>
             <ThemedText style={[styles.statValue, improvement > 0 ? styles.positiveChange : styles.negativeChange]}>
-              {improvement > 0 ? '+' : ''}{improvement.toFixed(1)}
+              {improvement > 0 ? '+' : ''}{improvement}
             </ThemedText>
             <ThemedText style={styles.statLabel}>Recent Change</ThemedText>
           </View>
@@ -81,7 +96,7 @@ export default function ProgressScreen() {
                 <View 
                   style={[
                     styles.chartBarFill, 
-                    { height: `${point.score * 10}%`, backgroundColor: accentColor }
+                    { height: `${point.score}%`, backgroundColor: getScoreColor(point.score) }
                   ]} 
                 />
                 <ThemedText style={styles.chartLabel}>{point.date}</ThemedText>
@@ -93,12 +108,12 @@ export default function ProgressScreen() {
         {/* Body Areas Section */}
         <View style={styles.bodyAreasContainer}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>Body Areas</ThemedText>
-          <ProgressBar title="Chest" value={8.5} color="#9C47FF" />
-          <ProgressBar title="Legs" value={7.2} color="#9C47FF" />
-          <ProgressBar title="Shoulders" value={8.7} color="#9C47FF" />
-          <ProgressBar title="Biceps" value={8.9} color="#9C47FF" />
-          <ProgressBar title="Triceps" value={8.3} color="#9C47FF" />
-          <ProgressBar title="Back" value={7.8} color="#9C47FF" />
+          <ProgressBar title="Chest" value={85} />
+          <ProgressBar title="Legs" value={72} />
+          <ProgressBar title="Shoulders" value={87} />
+          <ProgressBar title="Biceps" value={89} />
+          <ProgressBar title="Triceps" value={83} />
+          <ProgressBar title="Back" value={78} />
         </View>
 
         {/* Compare Button */}
@@ -224,7 +239,7 @@ const styles = StyleSheet.create({
   },
   progressValue: {
     fontSize: 14,
-    opacity: 0.7,
+    fontWeight: '600',
   },
   progressBackground: {
     height: 10,
