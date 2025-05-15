@@ -1,5 +1,4 @@
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
@@ -75,8 +74,8 @@ export default function ProfileScreen() {
         { 
           text: "Logout", 
           onPress: () => {
-            // Navigate to login screen
-            router.replace('/(auth)/login');
+            // This would navigate to login screen in a real app
+            Alert.alert("Logged Out", "You have been logged out successfully.");
           }
         }
       ]
@@ -103,7 +102,7 @@ export default function ProfileScreen() {
           onPress: () => {
             // Delete account logic would go here
             Alert.alert("Account Deleted", "Your account has been deleted successfully.");
-            router.replace('/(auth)/login');
+            // This would navigate to login screen in a real app
           }
         }
       ]
