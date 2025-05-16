@@ -7,18 +7,18 @@ import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
-// Helper function to get color based on score
+
 const getScoreColor = (score: number): string => {
-  if (score >= 90) return '#4CD964'; // Green for high scores
-  if (score >= 75) return '#73D945'; // Green-yellow
-  if (score >= 65) return '#A0D636'; // Yellow-green
-  if (score >= 55) return '#FFD60A'; // Yellow
-  if (score >= 45) return '#FFA500'; // Orange
-  if (score >= 35) return '#FF7643'; // Orange-red
-  return '#FF3B30'; // Red for low scores
+  if (score >= 90) return '#4CD964'; 
+  if (score >= 75) return '#73D945'; 
+  if (score >= 65) return '#A0D636'; 
+  if (score >= 55) return '#FFD60A'; 
+  if (score >= 45) return '#FFA500'; 
+  if (score >= 35) return '#FF7643'; 
+  return '#FF3B30'; 
 };
 
-// Mock user data - converted to 100-based scale
+
 const userData = {
   name: 'Alex Johnson',
   email: 'alex.johnson@example.com',
@@ -37,7 +37,7 @@ const userData = {
   },
 };
 
-// Component for the rating bars
+
 const RatingBar = ({ name, rating }: { name: string; rating: number }) => {
   const scoreColor = getScoreColor(rating);
   
@@ -59,7 +59,7 @@ const RatingBar = ({ name, rating }: { name: string; rating: number }) => {
   );
 };
 
-// Component for profile settings
+
 const SettingsItem = ({ icon, text, onPress }: { icon?: string; text: string; onPress: () => void }) => {
   return (
     <TouchableOpacity style={styles.settingsItem} onPress={onPress}>
@@ -85,7 +85,7 @@ export default function ProfileScreen() {
         { 
           text: "Logout", 
           onPress: () => {
-            // This would navigate to login screen in a real app
+            
             Alert.alert("Logged Out", "You have been logged out successfully.");
           }
         }
@@ -106,7 +106,7 @@ export default function ProfileScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.profileHeader}>
           <Image 
-            source={{ uri: "https://picsum.photos/seed/user123/300/300" }} 
+            source={{ uri: "https://example.com/profile.jpg" }}
             style={styles.profileImage}
             contentFit="cover"
           />
