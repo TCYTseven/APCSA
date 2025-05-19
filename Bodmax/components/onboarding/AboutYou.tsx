@@ -1,3 +1,4 @@
+import { Picker } from '@react-native-picker/picker';
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../../constants/Colors';
@@ -23,22 +24,26 @@ type AboutYouProps = {
 
 const AboutYou = ({ onNext, onBack, onUpdateData, userData }: AboutYouProps) => {
   const [gender, setGender] = useState(userData.gender || '');
-  const [height, setHeight] = useState(userData.height || '');
+  const [heightFeet, setHeightFeet] = useState(userData.height.split("'")[0] || '');
+  const [heightInches, setHeightInches] = useState(userData.height.split("'")[1] || '');
+  const [weight, setWeight] = useState(userData.weight || '');
   const [errors, setErrors] = useState({
     gender: false,
     height: false,
+    weight: false,
   });
 
   const validateAndContinue = () => {
     setErrors({
       gender: !gender,
-      height: !height,
+      height: !(heightFeet && heightInches),
+      weight: !weight,
     });
-    if (gender && height) {
+    if (gender && heightFeet && heightInches && weight) {
       onUpdateData({
         gender,
-        height,
-        weight: userData.weight || '',
+        height: `${heightFeet}'${heightInches}\"`,
+        weight,
       });
       onNext();
     }
@@ -72,18 +77,43 @@ const AboutYou = ({ onNext, onBack, onUpdateData, userData }: AboutYouProps) => 
         </View>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Height</Text>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <View style={{ flex: 1 }}>
+              <Picker
+                selectedValue={heightFeet}
+                onValueChange={setHeightFeet}
+                style={styles.picker}
+              >
+                <Picker.Item label="ft" value="" />
+                {[4,5,6,7].map(f => (
+                  <Picker.Item key={f} label={`${f} ft`} value={f.toString()} />
+                ))}
+              </Picker>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Picker
+                selectedValue={heightInches}
+                onValueChange={setHeightInches}
+                style={styles.picker}
+              >
+                <Picker.Item label="in" value="" />
+                {[...Array(12).keys()].map(i => (
+                  <Picker.Item key={i} label={`${i} in`} value={i.toString()} />
+                ))}
+              </Picker>
+            </View>
+          </View>
+          {errors.height && !(heightFeet && heightInches) && <Text style={styles.errorText}>Please enter your height</Text>}
+          <Text style={styles.sectionTitle}>Weight</Text>
           <TextInput
-            style={[
-              styles.input,
-              errors.height && !height && styles.inputError,
-            ]}
-            placeholder="Height in cm or ft/in"
+            style={[styles.input, errors.weight && !weight && styles.inputError]}
+            placeholder="Weight in lbs"
             placeholderTextColor={Colors.dark.icon}
-            value={height}
-            onChangeText={setHeight}
+            value={weight}
+            onChangeText={setWeight}
             keyboardType="numeric"
           />
-          {errors.height && !height && <Text style={styles.errorText}>Please enter your height</Text>}
+          {errors.weight && !weight && <Text style={styles.errorText}>Please enter your weight</Text>}
         </View>
         <View style={styles.buttonContainer}>
           <TouchableOpacity 
@@ -217,6 +247,16 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '700',
+    fontFamily: 'Prompt',
+  },
+  picker: {
+    backgroundColor: Colors.dark.card,
+    color: 'white',
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: Colors.dark.card,
     fontFamily: 'Prompt',
   },
 });
