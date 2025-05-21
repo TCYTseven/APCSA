@@ -17,7 +17,7 @@ type UserData = {
   password: string;
 }
 
-const steps = ['welcome', 'gender', 'height', 'weight', 'idealPhysique', 'createAccount'];
+const steps = ['welcome', 'aboutYou', 'idealPhysique', 'createAccount'];
 
 export default function Onboarding() {
   const [currentStep, setCurrentStep] = useState<string>('welcome');
@@ -54,31 +54,10 @@ export default function Onboarding() {
   const renderStep = () => {
     switch (currentStep) {
       case 'welcome':
-        return <Welcome onNext={() => handleNext('gender')} />;
-      case 'gender':
+        return <Welcome onNext={() => handleNext('aboutYou')} />;
+      case 'aboutYou':
         return (
           <AboutYou
-            step="gender"
-            onNext={() => handleNext('height')}
-            onBack={handleBack}
-            onUpdateData={handleUpdateUserData}
-            userData={userData}
-          />
-        );
-      case 'height':
-        return (
-          <AboutYou
-            step="height"
-            onNext={() => handleNext('weight')}
-            onBack={handleBack}
-            onUpdateData={handleUpdateUserData}
-            userData={userData}
-          />
-        );
-      case 'weight':
-        return (
-          <AboutYou
-            step="weight"
             onNext={() => handleNext('idealPhysique')}
             onBack={handleBack}
             onUpdateData={handleUpdateUserData}
@@ -104,7 +83,7 @@ export default function Onboarding() {
           />
         );
       default:
-        return <Welcome onNext={() => handleNext('gender')} />;
+        return <Welcome onNext={() => handleNext('aboutYou')} />;
     }
   };
 

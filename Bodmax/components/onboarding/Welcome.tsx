@@ -44,7 +44,6 @@ const styles = StyleSheet.create({
   gradient: {
     flex: 1,
     justifyContent: 'flex-start',
-    fontFamily: 'Prompt',
   },
   purpleAccent: {
     position: 'absolute',
@@ -73,7 +72,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 22,
     fontWeight: '700',
-    fontFamily: 'Prompt',
     letterSpacing: 1,
   },
   content: {
@@ -89,17 +87,14 @@ const styles = StyleSheet.create({
     lineHeight: 32,
     textAlign: 'left',
     marginBottom: 24,
-    fontFamily: 'Prompt',
   },
   splashTextFaint: {
     color: 'rgba(255,255,255,0.7)',
     fontWeight: '400',
-    fontFamily: 'Prompt',
   },
   splashTextBright: {
     color: 'white',
     fontWeight: 'bold',
-    fontFamily: 'Prompt',
   },
   buttonContainer: {
     width: '100%',
@@ -123,7 +118,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '700',
     fontSize: 18,
-    fontFamily: 'Prompt',
     letterSpacing: 1,
   },
 });

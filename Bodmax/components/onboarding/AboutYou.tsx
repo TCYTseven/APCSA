@@ -19,7 +19,6 @@ type AboutYouProps = {
     email: string;
     password: string;
   };
-  step: 'gender' | 'height' | 'weight';
 };
 
 const AboutYou = ({ onNext, onBack, onUpdateData, userData }: AboutYouProps) => {
@@ -33,12 +32,30 @@ const AboutYou = ({ onNext, onBack, onUpdateData, userData }: AboutYouProps) => 
     weight: false,
   });
 
+  const handleFeetChange = (value: string) => {
+    setHeightFeet(value);
+    if (value && heightInches) setErrors(e => ({ ...e, height: false }));
+  };
+
+  const handleInchesChange = (value: string) => {
+    setHeightInches(value);
+    if (heightFeet && value) setErrors(e => ({ ...e, height: false }));
+  };
+
+  const handleWeightChange = (value: string) => {
+    setWeight(value);
+    if (value) setErrors(e => ({ ...e, weight: false }));
+  };
+
   const validateAndContinue = () => {
-    setErrors({
+    const newErrors = {
       gender: !gender,
       height: !(heightFeet && heightInches),
       weight: !weight,
-    });
+    };
+
+    setErrors(newErrors);
+
     if (gender && heightFeet && heightInches && weight) {
       onUpdateData({
         gender,
@@ -54,6 +71,7 @@ const AboutYou = ({ onNext, onBack, onUpdateData, userData }: AboutYouProps) => 
       <View style={styles.container}>
         <Text style={styles.title}>About You</Text>
         <Text style={styles.subtitle}>Let's get to know you better</Text>
+        
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Gender</Text>
           <View style={styles.genderRow}>
@@ -64,7 +82,10 @@ const AboutYou = ({ onNext, onBack, onUpdateData, userData }: AboutYouProps) => 
                   styles.genderPill,
                   gender === g && styles.genderPillSelected,
                 ]}
-                onPress={() => setGender(g)}
+                onPress={() => {
+                  setGender(g);
+                  setErrors(e => ({ ...e, gender: false }));
+                }}
               >
                 <Text style={[
                   styles.genderPillText,
@@ -73,15 +94,16 @@ const AboutYou = ({ onNext, onBack, onUpdateData, userData }: AboutYouProps) => 
               </TouchableOpacity>
             ))}
           </View>
-          {errors.gender && !gender && <Text style={styles.errorText}>Please select a gender</Text>}
+          {errors.gender && <Text style={styles.errorText}>Please select a gender</Text>}
         </View>
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Height</Text>
           <View style={{ flexDirection: 'row', gap: 12 }}>
             <View style={{ flex: 1 }}>
               <Picker
                 selectedValue={heightFeet}
-                onValueChange={setHeightFeet}
+                onValueChange={handleFeetChange}
                 style={styles.picker}
               >
                 <Picker.Item label="ft" value="" />
@@ -93,7 +115,7 @@ const AboutYou = ({ onNext, onBack, onUpdateData, userData }: AboutYouProps) => 
             <View style={{ flex: 1 }}>
               <Picker
                 selectedValue={heightInches}
-                onValueChange={setHeightInches}
+                onValueChange={handleInchesChange}
                 style={styles.picker}
               >
                 <Picker.Item label="in" value="" />
@@ -103,18 +125,22 @@ const AboutYou = ({ onNext, onBack, onUpdateData, userData }: AboutYouProps) => 
               </Picker>
             </View>
           </View>
-          {errors.height && !(heightFeet && heightInches) && <Text style={styles.errorText}>Please enter your height</Text>}
+          {errors.height && <Text style={styles.errorText}>Please enter your height</Text>}
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Weight</Text>
           <TextInput
-            style={[styles.input, errors.weight && !weight && styles.inputError]}
+            style={[styles.input, errors.weight && styles.inputError]}
             placeholder="Weight in lbs"
             placeholderTextColor={Colors.dark.icon}
             value={weight}
-            onChangeText={setWeight}
+            onChangeText={handleWeightChange}
             keyboardType="numeric"
           />
-          {errors.weight && !weight && <Text style={styles.errorText}>Please enter your weight</Text>}
+          {errors.weight && <Text style={styles.errorText}>Please enter your weight</Text>}
         </View>
+
         <View style={styles.buttonContainer}>
           <TouchableOpacity 
             style={styles.backButton} 
@@ -126,7 +152,7 @@ const AboutYou = ({ onNext, onBack, onUpdateData, userData }: AboutYouProps) => 
             style={styles.nextButton} 
             onPress={validateAndContinue}
           >
-            <Text style={styles.nextButtonText}>Next</Text>
+            <Text style={styles.nextButtonText}>Continue</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -141,7 +167,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 24,
-    fontFamily: 'Prompt',
   },
   title: {
     fontSize: 28,
@@ -149,14 +174,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: 'center',
     color: 'white',
-    fontFamily: 'Prompt',
   },
   subtitle: {
     fontSize: 16,
     color: Colors.dark.icon,
     marginBottom: 32,
     textAlign: 'center',
-    fontFamily: 'Prompt',
   },
   section: {
     marginBottom: 24,
@@ -166,7 +189,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
     color: 'white',
-    fontFamily: 'Prompt',
   },
   genderRow: {
     flexDirection: 'row',
@@ -190,7 +212,6 @@ const styles = StyleSheet.create({
   genderPillText: {
     color: 'white',
     fontSize: 16,
-    fontFamily: 'Prompt',
     fontWeight: '500',
   },
   genderPillTextSelected: {
@@ -205,7 +226,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: Colors.dark.card,
-    fontFamily: 'Prompt',
   },
   inputError: {
     borderColor: Colors.dark.tint,
@@ -214,7 +234,6 @@ const styles = StyleSheet.create({
     color: '#ef4444',
     marginTop: 8,
     fontSize: 14,
-    fontFamily: 'Prompt',
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -233,7 +252,6 @@ const styles = StyleSheet.create({
     color: Colors.dark.icon,
     fontWeight: '700',
     fontSize: 16,
-    fontFamily: 'Prompt',
   },
   nextButton: {
     backgroundColor: Colors.dark.tint,
@@ -247,7 +265,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '700',
-    fontFamily: 'Prompt',
   },
   picker: {
     backgroundColor: Colors.dark.card,
@@ -257,7 +274,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: Colors.dark.card,
-    fontFamily: 'Prompt',
   },
 });
 

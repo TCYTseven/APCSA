@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../../constants/Colors';
+
+// You may need to add these icons to your assets
+const googleIcon = 'https://www.svgrepo.com/show/303108/google-icon-logo.svg';
+const appleIcon = 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg';
 
 type CreateAccountProps = {
   onComplete: () => void;
@@ -44,23 +48,23 @@ const CreateAccount = ({ onComplete, onBack, onUpdateData, userData }: CreateAcc
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
+    <ScrollView contentContainerStyle={styles.scrollContainer} style={{ backgroundColor: Colors.dark.background }}>
       <View style={styles.container}>
-        <Text style={styles.title}>Create Your Account</Text>
-        <Text style={styles.subtitle}>Let's get you set up</Text>
+        <Text style={styles.title}>Create your account</Text>
+        <Text style={styles.subtitle}>Log in or sign up for free</Text>
 
-        <View style={styles.googleButtonContainer}>
-          <TouchableOpacity style={styles.googleButton}>
-            <View style={styles.googleIconPlaceholder}>
-              <Text style={styles.googleIconText}>G</Text>
-            </View>
-            <Text style={styles.googleButtonText}>Continue with Google</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.socialButton}>
+          <Image source={googleIcon} style={styles.socialIcon} />
+          <Text style={styles.socialButtonText}>Continue with Google</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.socialButton}>
+          <Image source={appleIcon} style={styles.socialIcon} />
+          <Text style={styles.socialButtonText}>Continue with Apple</Text>
+        </TouchableOpacity>
 
         <View style={styles.dividerContainer}>
           <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>OR</Text>
+          <Text style={styles.dividerText}>or</Text>
           <View style={styles.dividerLine} />
         </View>
 
@@ -70,6 +74,7 @@ const CreateAccount = ({ onComplete, onBack, onUpdateData, userData }: CreateAcc
             <TextInput
               style={[styles.input, errors.email && styles.inputError]}
               placeholder="Enter your email"
+              placeholderTextColor="#aaa"
               value={email}
               onChangeText={(text) => {
                 setEmail(text);
@@ -88,6 +93,7 @@ const CreateAccount = ({ onComplete, onBack, onUpdateData, userData }: CreateAcc
             <TextInput
               style={[styles.input, errors.password && styles.inputError]}
               placeholder="Create a password"
+              placeholderTextColor="#aaa"
               value={password}
               onChangeText={(text) => {
                 setPassword(text);
@@ -126,14 +132,16 @@ const CreateAccount = ({ onComplete, onBack, onUpdateData, userData }: CreateAcc
 const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
+    justifyContent: 'center',
   },
   container: {
     flex: 1,
-    padding: 20,
+    padding: 24,
     backgroundColor: Colors.dark.background,
+    justifyContent: 'center',
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     marginBottom: 8,
     textAlign: 'center',
@@ -145,52 +153,42 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     textAlign: 'center',
   },
-  googleButtonContainer: {
-    marginBottom: 24,
-  },
-  googleButton: {
+  socialButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.dark.tint,
-    borderWidth: 0,
+    backgroundColor: 'white',
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
     paddingVertical: 14,
     paddingHorizontal: 24,
-    marginBottom: 24,
+    marginBottom: 16,
+    justifyContent: 'center',
   },
-  googleIconPlaceholder: {
+  socialIcon: {
     width: 24,
     height: 24,
-    borderRadius: 12,
-    backgroundColor: 'white',
-    justifyContent: 'center',
-    alignItems: 'center',
     marginRight: 12,
+    resizeMode: 'contain',
   },
-  googleIconText: {
-    color: Colors.dark.tint,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  googleButtonText: {
-    fontSize: 16,
+  socialButtonText: {
+    color: '#222',
     fontWeight: '700',
-    color: 'white',
+    fontSize: 16,
   },
   dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginVertical: 24,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#ddd',
+    backgroundColor: '#333',
   },
   dividerText: {
     paddingHorizontal: 16,
-    color: '#666',
+    color: '#aaa',
     fontSize: 14,
   },
   formContainer: {
@@ -203,7 +201,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     marginBottom: 8,
-    color: '#333',
+    color: '#ccc',
   },
   input: {
     backgroundColor: Colors.dark.card,
@@ -233,12 +231,13 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   termsLink: {
-    color: '#3b82f6',
+    color: '#8b5cf6',
     fontWeight: '500',
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: 8,
   },
   backButton: {
     backgroundColor: Colors.dark.card,
@@ -251,10 +250,10 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: Colors.dark.icon,
     fontWeight: '700',
-    fontSize: 18,
+    fontSize: 16,
   },
   createButton: {
-    backgroundColor: Colors.dark.tint,
+    backgroundColor: '#8b5cf6',
     paddingVertical: 16,
     borderRadius: 10,
     alignItems: 'center',
@@ -264,7 +263,7 @@ const styles = StyleSheet.create({
   createButtonText: {
     color: 'white',
     fontWeight: '700',
-    fontSize: 18,
+    fontSize: 16,
   },
 });
 

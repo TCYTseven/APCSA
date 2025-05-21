@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Colors } from '../../constants/Colors';
 
 type PhysiqueOption = {
   id: string;
@@ -24,7 +23,6 @@ type IdealPhysiqueProps = {
 };
 
 const physiqueOptions: PhysiqueOption[] = [
-
   {
     id: 'athletic',
     title: 'Athletic',
@@ -71,11 +69,14 @@ const IdealPhysique = ({ onNext, onBack, onUpdateData, userData }: IdealPhysique
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
+    <ScrollView 
+      contentContainerStyle={styles.scrollContainer}
+      style={{ backgroundColor: '#000000' }}
+    >
       <View style={styles.container}>
-        <Text style={styles.title}>Your Ideal Physique</Text>
+        <Text style={styles.title}>Choose Your Goal</Text>
         <Text style={styles.subtitle}>
-          Select the physique that best matches your fitness goals
+          Select the physique that best matches your fitness aspirations
         </Text>
 
         <View style={styles.optionsContainer}>
@@ -90,10 +91,25 @@ const IdealPhysique = ({ onNext, onBack, onUpdateData, userData }: IdealPhysique
               onPress={() => handleSelect(option.id)}
             >
               <View style={styles.optionContent}>
-                <Image source={option.image} style={styles.physiqueImage} />
+                <View style={[
+                  styles.imageContainer,
+                  selectedPhysique === option.id && styles.selectedImageContainer
+                ]}>
+                  <Image source={option.image} style={styles.physiqueImage} />
+                </View>
                 <View style={styles.textContainer}>
-                  <Text style={styles.optionTitle}>{option.title}</Text>
-                  <Text style={styles.optionDescription}>{option.description}</Text>
+                  <Text style={[
+                    styles.optionTitle,
+                    selectedPhysique === option.id && styles.selectedOptionTitle
+                  ]}>
+                    {option.title}
+                  </Text>
+                  <Text style={[
+                    styles.optionDescription,
+                    selectedPhysique === option.id && styles.selectedOptionDescription
+                  ]}>
+                    {option.description}
+                  </Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -105,7 +121,10 @@ const IdealPhysique = ({ onNext, onBack, onUpdateData, userData }: IdealPhysique
         )}
 
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.backButton} onPress={onBack}>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={onBack}
+          >
             <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
 
@@ -113,7 +132,7 @@ const IdealPhysique = ({ onNext, onBack, onUpdateData, userData }: IdealPhysique
             style={styles.nextButton}
             onPress={handleContinue}
           >
-            <Text style={styles.nextButtonText}>Next</Text>
+            <Text style={styles.nextButtonText}>Continue</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -127,19 +146,19 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    padding: 20,
+    padding: 24,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     marginBottom: 8,
     textAlign: 'center',
-    color: 'white',
+    color: '#ffffff',
   },
   subtitle: {
     fontSize: 16,
-    color: Colors.dark.icon,
-    marginBottom: 24,
+    color: '#9ca3af',
+    marginBottom: 32,
     textAlign: 'center',
   },
   optionsContainer: {
@@ -147,26 +166,45 @@ const styles = StyleSheet.create({
   },
   option: {
     borderWidth: 2,
-    borderColor: Colors.dark.card,
-    borderRadius: 14,
+    borderColor: '#1f1f1f',
+    borderRadius: 16,
     marginBottom: 16,
-    padding: 18,
-    backgroundColor: Colors.dark.background,
+    padding: 20,
+    backgroundColor: '#0a0a0a',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   selectedOption: {
-    borderColor: Colors.dark.tint,
+    borderColor: '#8b5cf6',
     backgroundColor: '#1a0026',
   },
   optionContent: {
     flexDirection: 'row',
     alignItems: 'center',
   },
+  imageContainer: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    marginRight: 16,
+    backgroundColor: '#1f1f1f',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  selectedImageContainer: {
+    backgroundColor: '#8b5cf6',
+  },
   physiqueImage: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    marginRight: 16,
-    backgroundColor: Colors.dark.card,
   },
   textContainer: {
     flex: 1,
@@ -174,12 +212,19 @@ const styles = StyleSheet.create({
   optionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    marginBottom: 4,
-    color: 'white',
+    marginBottom: 6,
+    color: '#ffffff',
+  },
+  selectedOptionTitle: {
+    color: '#8b5cf6',
   },
   optionDescription: {
-    color: Colors.dark.icon,
-    fontSize: 15,
+    color: '#9ca3af',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  selectedOptionDescription: {
+    color: '#c4b5fd',
   },
   errorBorder: {
     borderColor: '#ef4444',
@@ -196,31 +241,28 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   backButton: {
-    borderWidth: 1,
-    borderColor: '#3b82f6',
-    borderRadius: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
+    backgroundColor: '#1f1f1f',
+    borderRadius: 12,
+    paddingVertical: 16,
     alignItems: 'center',
     flex: 1,
     marginRight: 8,
   },
   backButtonText: {
-    color: '#3b82f6',
+    color: '#9ca3af',
     fontSize: 16,
     fontWeight: '600',
   },
   nextButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
+    backgroundColor: '#8b5cf6',
+    borderRadius: 12,
+    paddingVertical: 16,
     alignItems: 'center',
     flex: 1,
     marginLeft: 8,
   },
   nextButtonText: {
-    color: '#fff',
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
   },
