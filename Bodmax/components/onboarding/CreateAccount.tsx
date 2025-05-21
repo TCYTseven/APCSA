@@ -54,11 +54,11 @@ const CreateAccount = ({ onComplete, onBack, onUpdateData, userData }: CreateAcc
         <Text style={styles.subtitle}>Log in or sign up for free</Text>
 
         <TouchableOpacity style={styles.socialButton}>
-          <Image source={googleIcon} style={styles.socialIcon} />
+          <Image source={{ uri: googleIcon }} style={styles.socialIcon} />
           <Text style={styles.socialButtonText}>Continue with Google</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.socialButton}>
-          <Image source={appleIcon} style={styles.socialIcon} />
+          <Image source={{ uri: appleIcon }} style={styles.socialIcon} />
           <Text style={styles.socialButtonText}>Continue with Apple</Text>
         </TouchableOpacity>
 

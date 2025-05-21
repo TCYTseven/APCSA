@@ -1,23 +1,23 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
 
 import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const primaryColor = '#8844ee'; // Purple color from scan page
+  const primaryColor = '#ffffff';
 
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: primaryColor,
-        tabBarInactiveTintColor: '#777777',
+        tabBarInactiveTintColor: '#bbb',
         headerShown: false,
         tabBarButton: props => <HapticTab {...props} />,
         tabBarStyle: {
-          backgroundColor: '#1c1c1c',
+          backgroundColor: '#1a1a1a',
           borderTopWidth: 0,
           elevation: 0,
           height: 60,
@@ -37,7 +37,7 @@ export default function TabLayout() {
         options={{
           title: 'Scan',
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={24} name="camera.fill" color={color} />
+            <Ionicons name="camera" size={24} color={color} />
           ),
         }}
       />
@@ -46,7 +46,7 @@ export default function TabLayout() {
         options={{
           title: 'Progress',
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={24} name="chart.line.uptrend.xyaxis" color={color} />
+            <Ionicons name="stats-chart" size={24} color={color} />
           ),
         }}
       />
@@ -55,7 +55,7 @@ export default function TabLayout() {
         options={{
           title: 'Insights',
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={24} name="lightbulb.fill" color={color} />
+            <Ionicons name="bulb" size={24} color={color} />
           ),
         }}
       />
@@ -64,7 +64,7 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={24} name="person.fill" color={color} />
+            <Ionicons name="person" size={24} color={color} />
           ),
         }}
       />

@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   scrollContent: {
-    paddingBottom: 30,
+    paddingBottom: 90,
   },
   profileHeader: {
     alignItems: 'center',
