@@ -1,5 +1,4 @@
 import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
@@ -15,28 +14,7 @@ export default function ScanScreen() {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleBeginScan = () => {
-    setIsLoading(true);
-    
-    // Simulate analysis process
-    setTimeout(() => {
-      setIsLoading(false);
-      // Navigate to insights page after analysis
-      router.push('/insights');
-    }, 2000);
-  };
-
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [3, 4],
-      quality: 1,
-    });
-
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      // Handle the selected image
-      handleBeginScan();
-    }
+    router.push('/photo-insights');
   };
 
   return (
@@ -62,13 +40,13 @@ export default function ScanScreen() {
             
             <TouchableOpacity
               style={styles.scanButton}
-              onPress={pickImage}
+              onPress={handleBeginScan}
               disabled={isLoading}>
               <LinearGradient
                 colors={['#8844ee', '#6622cc']}
                 style={styles.gradient}>
                 <ThemedText style={styles.buttonText}>
-                  {isLoading ? "Processing..." : "Begin scan"}
+                  {isLoading ? "Processing..." : "Get Started"}
                 </ThemedText>
               </LinearGradient>
             </TouchableOpacity>
@@ -115,7 +93,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1c1c1c',
   },
   imageContainer: {
-    height: '65%',
+    height: '60%',
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#1c1c1c',
@@ -127,6 +105,8 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 24,
     alignItems: 'center',
+    flex: 1,
+    justifyContent: 'space-between',
   },
   heading: {
     fontSize: 24,
@@ -145,7 +125,8 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     overflow: 'hidden',
-    marginTop: 4,
+    marginTop: 'auto',
+    marginBottom: 16,
   },
   gradient: {
     width: '100%',

@@ -68,6 +68,12 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="photo-insights"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

@@ -1,5 +1,5 @@
-import React from 'react';
-import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { Dimensions, Image, Modal, Text as RNText, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, Line } from 'react-native-svg';
 
 import { ThemedText } from '@/components/ThemedText';
@@ -28,6 +28,23 @@ const mockData = [
   { date: 'Apr 20', score: 79 },
   { date: 'May 8', score: 85 },
 ];
+
+// Mock scan data for calendar
+type ScanDay = { date: string; image: string; score: number };
+type ScanWithChange = ScanDay & { change: { text: string; color: string }; prevDate: string | null };
+const scanData: ScanDay[] = [
+  { date: '2024-06-01', image: 'https://via.placeholder.com/150', score: 72 },
+  { date: '2024-06-03', image: 'https://via.placeholder.com/150', score: 74 },
+  { date: '2024-06-07', image: 'https://via.placeholder.com/150', score: 78 },
+  { date: '2024-06-10', image: 'https://via.placeholder.com/150', score: 80 },
+];
+
+function getScoreChange(currentScore: number, previousScore: number): { text: string; color: string } {
+  const diff = currentScore - previousScore;
+  if (diff > 0) return { text: `Your score has improved by ${diff} since last scan!`, color: '#4CD964' };
+  if (diff < 0) return { text: `Your score has decreased by ${Math.abs(diff)} since last scan!`, color: '#FF3B30' };
+  return { text: 'Your score is unchanged since last scan!', color: '#aaa' };
+}
 
 const ProgressBar = ({ title, value }: { title: string; value: number }) => {
   const scoreColor = getScoreColor(value);
@@ -116,6 +133,73 @@ const LineChart = ({ data }: { data: Array<{ date: string; score: number }> }) =
   );
 };
 
+// Simple Calendar UI (for demo, not a full calendar)
+const monthNames = [
+  'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+const Calendar = ({ scanDays, onDayPress }: { scanDays: ScanDay[]; onDayPress: (day: number) => void }) => {
+  // Month navigation state
+  const [month, setMonth] = useState(5); // 0-indexed, 5 = June
+  const [year, setYear] = useState(2024);
+
+  // For demo, only June 2024 has data
+  const daysInMonth = 30;
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const scanDates = scanDays
+    .filter((d: ScanDay) => {
+      const [y, m] = d.date.split('-');
+      return parseInt(y) === year && parseInt(m) === month + 1;
+    })
+    .map((d: ScanDay) => parseInt(d.date.split('-')[2]));
+
+  const handlePrevMonth = () => {
+    if (month === 0) {
+      setMonth(11);
+      setYear(year - 1);
+    } else {
+      setMonth(month - 1);
+    }
+  };
+  const handleNextMonth = () => {
+    if (month === 11) {
+      setMonth(0);
+      setYear(year + 1);
+    } else {
+      setMonth(month + 1);
+    }
+  };
+
+  return (
+    <View style={styles.calendarContainer}>
+      <View style={styles.calendarHeader}>
+        <TouchableOpacity onPress={handlePrevMonth} style={styles.calendarArrow}>
+          <RNText style={styles.calendarArrowText}>{'<'}</RNText>
+        </TouchableOpacity>
+        <RNText style={styles.calendarTitle}>{monthNames[month]} {year}</RNText>
+        <TouchableOpacity onPress={handleNextMonth} style={styles.calendarArrow}>
+          <RNText style={styles.calendarArrowText}>{'>'}</RNText>
+        </TouchableOpacity>
+      </View>
+      <View style={styles.calendarGrid}>
+        {days.map((day: number) => {
+          const isScan = scanDates.includes(day);
+          return (
+            <TouchableOpacity
+              key={day}
+              style={[styles.calendarDayRect, isScan && styles.calendarDayRectScan]}
+              onPress={() => isScan && onDayPress(day)}
+              disabled={!isScan}
+            >
+              <RNText style={[styles.calendarDayTextRect, isScan && styles.calendarDayTextRectScan]}>{day}</RNText>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+};
+
 export default function ProgressScreen() {
   const colorScheme = useColorScheme();
   const accentColor = Colors[colorScheme ?? 'dark'].tint;
@@ -128,33 +212,53 @@ export default function ProgressScreen() {
   
   const latestScoreColor = getScoreColor(latestScore);
 
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedScan, setSelectedScan] = useState<ScanWithChange | null>(null);
+
+  // Find previous scan for score change
+  function handleDayPress(day: number) {
+    const scan = scanData.find((d: ScanDay) => parseInt(d.date.split('-')[2]) === day);
+    if (!scan) return;
+    const idx = scanData.findIndex((d: ScanDay) => d.date === scan.date);
+    const prev = idx > 0 ? scanData[idx - 1] : null;
+    setSelectedScan({
+      ...scan,
+      change: prev ? getScoreChange(scan.score, prev.score) : { text: '', color: '#aaa' },
+      prevDate: prev ? prev.date : null,
+    });
+    setModalVisible(true);
+  }
+
   return (
     <ThemedView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <ThemedText type="title" style={styles.title}>Progress Tracker</ThemedText>
         
-        {/* Current Stats Section */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <ThemedText style={[styles.statValue, { color: latestScoreColor }]}>{latestScore}</ThemedText>
-            <ThemedText style={styles.statLabel}>Current Score</ThemedText>
+        {/* Current Stats Section (smaller) */}
+        <View style={styles.statsContainerSmall}>
+          <View style={styles.statCardSmall}>
+            <ThemedText style={[styles.statValueSmall, { color: latestScoreColor }]}>{latestScore}</ThemedText>
+            <ThemedText style={styles.statLabelSmall}>Current Score</ThemedText>
           </View>
           
-          <View style={styles.streakCard}>
-            <View style={styles.streakIconContainer}>
-              <ThemedText style={styles.fireIcon}>🔥</ThemedText>
-              <ThemedText style={styles.streakValue}>{streakCount}</ThemedText>
+          <View style={styles.streakCardSmall}>
+            <View style={styles.streakIconContainerSmall}>
+              <ThemedText style={styles.fireIconSmall}>🔥</ThemedText>
+              <ThemedText style={styles.streakValueSmall}>{streakCount}</ThemedText>
             </View>
-            <ThemedText style={styles.streakLabel}>Day Streak</ThemedText>
+            <ThemedText style={styles.streakLabelSmall}>Day Streak</ThemedText>
           </View>
           
-          <View style={styles.statCard}>
-            <ThemedText style={[styles.statValue, improvement > 0 ? styles.positiveChange : styles.negativeChange]}>
+          <View style={styles.statCardSmall}>
+            <ThemedText style={[styles.statValueSmall, improvement > 0 ? styles.positiveChange : styles.negativeChange]}>
               {improvement > 0 ? '+' : ''}{improvement}
             </ThemedText>
-            <ThemedText style={styles.statLabel}>Recent Change</ThemedText>
+            <ThemedText style={styles.statLabelSmall}>Recent Change</ThemedText>
           </View>
         </View>
+
+        {/* Calendar UI */}
+        <Calendar scanDays={scanData} onDayPress={handleDayPress} />
 
         {/* Progress Chart Section - Line chart */}
         <View style={styles.chartContainer}>
@@ -179,6 +283,31 @@ export default function ProgressScreen() {
           onPress={() => {/* Compare functionality would go here */}}>
           <ThemedText style={styles.compareButtonText}>Compare Before/After</ThemedText>
         </TouchableOpacity>
+
+        {/* Modal for scan details */}
+        <Modal
+          visible={modalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              {selectedScan && (
+                <>
+                  <RNText style={styles.modalDate}>Scan: {selectedScan.date}</RNText>
+                  <Image source={{ uri: selectedScan.image }} style={styles.modalImage} />
+                  <View style={[styles.modalTag, { backgroundColor: selectedScan.change.color + '22' }]}> 
+                    <RNText style={[styles.modalTagText, { color: selectedScan.change.color }]}>{selectedScan.change.text}</RNText>
+                  </View>
+                  <TouchableOpacity style={styles.modalClose} onPress={() => setModalVisible(false)}>
+                    <RNText style={styles.modalCloseText}>Close</RNText>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </ThemedView>
   );
@@ -199,49 +328,49 @@ const styles = StyleSheet.create({
     marginTop: 60,
     marginBottom: 24,
   },
-  statsContainer: {
+  statsContainerSmall: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: 12,
   },
-  statCard: {
+  statCardSmall: {
     width: '30%',
     alignItems: 'center',
-    padding: 10,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    padding: 6,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  statValue: {
-    fontSize: 22,
+  statValueSmall: {
+    fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 5,
+    marginBottom: 2,
   },
-  statLabel: {
-    fontSize: 12,
+  statLabelSmall: {
+    fontSize: 10,
     opacity: 0.7,
   },
-  streakCard: {
+  streakCardSmall: {
     width: '30%',
     alignItems: 'center',
-    padding: 10,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    padding: 6,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  streakIconContainer: {
+  streakIconContainerSmall: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 5,
+    marginBottom: 2,
   },
-  fireIcon: {
-    fontSize: 18,
-    marginRight: 4,
+  fireIconSmall: {
+    fontSize: 13,
+    marginRight: 2,
   },
-  streakValue: {
-    fontSize: 22,
+  streakValueSmall: {
+    fontSize: 16,
     fontWeight: 'bold',
   },
-  streakLabel: {
-    fontSize: 12,
+  streakLabelSmall: {
+    fontSize: 10,
     opacity: 0.7,
   },
   positiveChange: {
@@ -313,6 +442,109 @@ const styles = StyleSheet.create({
   compareButtonText: {
     color: 'white',
     fontSize: 18,
+    fontWeight: 'bold',
+  },
+  calendarContainer: {
+    marginBottom: 18,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 16,
+    padding: 12,
+    alignItems: 'center',
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  calendarArrow: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  calendarArrowText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  calendarTitle: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
+    marginBottom: 0,
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    width: 7 * 36,
+    justifyContent: 'center',
+  },
+  calendarDayRect: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    margin: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  calendarDayRectScan: {
+    backgroundColor: '#8b5cf6',
+    borderColor: '#fff',
+  },
+  calendarDayTextRect: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  calendarDayTextRectScan: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#222',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    width: 300,
+  },
+  modalDate: {
+    color: '#fff',
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  modalImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  modalTag: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  modalTagText: {
+    fontWeight: 'bold',
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  modalClose: {
+    marginTop: 4,
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#8b5cf6',
+  },
+  modalCloseText: {
+    color: '#fff',
     fontWeight: 'bold',
   },
 }); 
