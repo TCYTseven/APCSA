@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Dimensions, Image, Modal, Text as RNText, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { Animated, Dimensions, Image, LayoutChangeEvent, Modal, Text as RNText, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, Line } from 'react-native-svg';
 
 import { ThemedText } from '@/components/ThemedText';
@@ -33,10 +33,10 @@ const mockData = [
 type ScanDay = { date: string; image: string; score: number };
 type ScanWithChange = ScanDay & { change: { text: string; color: string }; prevDate: string | null };
 const scanData: ScanDay[] = [
-  { date: '2024-06-01', image: 'https://via.placeholder.com/150', score: 72 },
-  { date: '2024-06-03', image: 'https://via.placeholder.com/150', score: 74 },
-  { date: '2024-06-07', image: 'https://via.placeholder.com/150', score: 78 },
-  { date: '2024-06-10', image: 'https://via.placeholder.com/150', score: 80 },
+  { date: '2024-06-01', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTAGkZ6b3g6Qk_OTDYakHzBPaxE3x6YbD4xlA&s', score: 72 },
+  { date: '2024-06-03', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTAGkZ6b3g6Qk_OTDYakHzBPaxE3x6YbD4xlA&s', score: 74 },
+  { date: '2024-06-07', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTAGkZ6b3g6Qk_OTDYakHzBPaxE3x6YbD4xlA&s', score: 78 },
+  { date: '2024-06-10', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTAGkZ6b3g6Qk_OTDYakHzBPaxE3x6YbD4xlA&s', score: 80 },
 ];
 
 function getScoreChange(currentScore: number, previousScore: number): { text: string; color: string } {
@@ -200,6 +200,151 @@ const Calendar = ({ scanDays, onDayPress }: { scanDays: ScanDay[]; onDayPress: (
   );
 };
 
+// Confetti/Explosion implementation (adapted from provided code)
+const initialTopPosition = 0.5;
+const explosionVelocity = 500;
+const fallingSpeed = 4000;
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const confettieColors = [
+  '#FF5733', '#FFC300', '#DAF7A6', '#C70039', '#900C3F', '#FF5733', '#FFC300', '#581845', '#33FF57', '#3375FF', '#F033FF',
+];
+const getRandomValue = (min: number, max: number) => Math.random() * (max - min) + min;
+const getRandomColor = (colors: string[]) => colors[Math.floor(getRandomValue(0, colors.length))];
+
+const Confetti = ({ contentTransform, transform, opacity, color }: any) => {
+  const confettiWidth = getRandomValue(8, 16);
+  const confettiHeight = getRandomValue(6, 12);
+  const isConfettiRounded = Math.round(getRandomValue(0, 1)) === 1;
+  const containerStyle = { transform: contentTransform };
+  const confettiStyle = {
+    width: confettiWidth,
+    height: confettiHeight,
+    backgroundColor: color,
+    transform,
+    opacity,
+  };
+  return (
+    <Animated.View style={[confettiStyles.confetti, containerStyle]} pointerEvents="none">
+      <Animated.View style={[isConfettiRounded && confettiStyles.rounded, confettiStyle]} />
+    </Animated.View>
+  );
+};
+
+const Explosion = React.forwardRef(({ count, origin, explosionSpeed = explosionVelocity, fallSpeed = fallingSpeed, colors = confettieColors, fadeOut }: any, ref) => {
+  const [confettiItems, setConfettiItems] = useState<any[]>([]);
+  const animationValue = useRef(new Animated.Value(0)).current;
+
+  const startAnimation = () => {
+    animationValue.setValue(0);
+    Animated.sequence([
+      Animated.timing(animationValue, {
+        toValue: 1,
+        duration: explosionSpeed,
+        useNativeDriver: true,
+      }),
+      Animated.timing(animationValue, {
+        toValue: 2,
+        duration: fallSpeed,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const stopAnimation = () => {
+    animationValue.stopAnimation();
+  };
+
+  React.useImperativeHandle(ref, () => ({
+    start: startAnimation,
+    stop: stopAnimation,
+  }));
+
+  React.useEffect(() => {
+    const newConfettiItems = Array(count)
+      .fill(0)
+      .map(() => ({
+        leftDelta: getRandomValue(0, 1),
+        topDelta: getRandomValue(initialTopPosition, 1),
+        swingDelta: getRandomValue(0.2, 1),
+        speedDelta: {
+          rotateX: getRandomValue(0.3, 1),
+          rotateY: getRandomValue(0.3, 1),
+          rotateZ: getRandomValue(0.3, 1),
+        },
+        color: getRandomColor(colors),
+      }));
+    setConfettiItems(newConfettiItems);
+  }, [count, colors]);
+
+  return (
+    <View style={confettiStyles.explosionContainer} pointerEvents="none">
+      {confettiItems.map((item, index) => {
+        const top = animationValue.interpolate({
+          inputRange: [0, 1, 1 + item.topDelta, 2],
+          outputRange: [origin.y, 2 * origin.y - item.topDelta * screenHeight, 2 * origin.y, 4 * origin.y],
+        });
+        const left = animationValue.interpolate({
+          inputRange: [0, 1, 2],
+          outputRange: [origin.x, item.leftDelta * screenWidth, item.leftDelta * screenWidth],
+        });
+        const opacity = animationValue.interpolate({
+          inputRange: [0, 1, 1.8, 2],
+          outputRange: [1, 1, 1, fadeOut ? 0 : 1],
+        });
+        const translateX = animationValue.interpolate({
+          inputRange: [0, 0.4, 1.2, 2],
+          outputRange: [0, -(item.swingDelta * 30), item.swingDelta * 30, 0],
+        });
+        const rotateX = animationValue.interpolate({
+          inputRange: [0, 2],
+          outputRange: ['0deg', `${item.speedDelta.rotateX * 360 * 10}deg`],
+        });
+        const rotateY = animationValue.interpolate({
+          inputRange: [0, 2],
+          outputRange: ['0deg', `${item.speedDelta.rotateY * 360 * 5}deg`],
+        });
+        const rotateZ = animationValue.interpolate({
+          inputRange: [0, 2],
+          outputRange: ['0deg', `${item.speedDelta.rotateZ * 360 * 2}deg`],
+        });
+        const distanceOpacity = animationValue.interpolate({
+          inputRange: [1, 2],
+          outputRange: [1, 0.5],
+          extrapolate: 'clamp',
+        });
+        const combinedOpacity = Animated.multiply(opacity, distanceOpacity);
+        const contentTransform = [{ translateX: left }, { translateY: top }];
+        const transform = [{ rotateX }, { rotateY }, { rotate: rotateZ }, { translateX }];
+        return (
+          <Confetti
+            key={index}
+            contentTransform={contentTransform}
+            transform={transform}
+            opacity={combinedOpacity}
+            color={item.color}
+          />
+        );
+      })}
+    </View>
+  );
+});
+
+const confettiStyles = StyleSheet.create({
+  explosionContainer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
+  },
+  confetti: {
+    position: 'absolute',
+    left: 0,
+    top: -10,
+    zIndex: 1,
+  },
+  rounded: {
+    borderRadius: 100,
+  },
+});
+
 export default function ProgressScreen() {
   const colorScheme = useColorScheme();
   const accentColor = Colors[colorScheme ?? 'dark'].tint;
@@ -214,6 +359,8 @@ export default function ProgressScreen() {
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedScan, setSelectedScan] = useState<ScanWithChange | null>(null);
+  const explosionRef = useRef<any>(null);
+  const [modalImageLayout, setModalImageLayout] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
 
   // Find previous scan for score change
   function handleDayPress(day: number) {
@@ -228,6 +375,13 @@ export default function ProgressScreen() {
     });
     setModalVisible(true);
   }
+
+  // Trigger confetti when modal opens and score improved
+  React.useEffect(() => {
+    if (modalVisible && selectedScan && selectedScan.change.text.includes('improved') && explosionRef.current && modalImageLayout) {
+      explosionRef.current.start();
+    }
+  }, [modalVisible, selectedScan, modalImageLayout]);
 
   return (
     <ThemedView style={styles.container}>
@@ -293,10 +447,31 @@ export default function ProgressScreen() {
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
+              {/* Confetti explosion overlay (only if improved) */}
+              {selectedScan && selectedScan.change.text.includes('improved') && modalImageLayout && (
+                <Explosion
+                  ref={explosionRef}
+                  count={120}
+                  origin={{
+                    x: modalImageLayout.x + modalImageLayout.width / 2,
+                    y: modalImageLayout.y + modalImageLayout.height / 2,
+                  }}
+                  fallSpeed={fallingSpeed}
+                  explosionSpeed={explosionVelocity}
+                  fadeOut={true}
+                />
+              )}
               {selectedScan && (
                 <>
                   <RNText style={styles.modalDate}>Scan: {selectedScan.date}</RNText>
-                  <Image source={{ uri: selectedScan.image }} style={styles.modalImage} />
+                  <Image
+                    source={{ uri: selectedScan.image }}
+                    style={styles.modalImage}
+                    onLayout={(e: LayoutChangeEvent) => {
+                      const { x, y, width, height } = e.nativeEvent.layout;
+                      setModalImageLayout({ x, y, width, height });
+                    }}
+                  />
                   <View style={[styles.modalTag, { backgroundColor: selectedScan.change.color + '22' }]}> 
                     <RNText style={[styles.modalTagText, { color: selectedScan.change.color }]}>{selectedScan.change.text}</RNText>
                   </View>
