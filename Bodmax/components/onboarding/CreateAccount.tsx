@@ -101,7 +101,7 @@ const CreateAccount = ({ onComplete, onBack, onUpdateData, userData }: CreateAcc
   const passwordStrength = getPasswordStrength(password);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#000000' }}>
+    <View style={{ flex: 1, backgroundColor: '#000000', overflow: 'hidden' }}>
       {/* Background Elements */}
       <View style={{ position: 'absolute', top: -100, right: -100, width: 200, height: 200, borderRadius: 100, backgroundColor: Colors.dark.tint, opacity: 0.1 }} />
       <View style={{ position: 'absolute', bottom: -80, left: -80, width: 160, height: 160, borderRadius: 80, backgroundColor: Colors.dark.tint, opacity: 0.08 }} />
