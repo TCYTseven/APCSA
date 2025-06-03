@@ -1,102 +1,240 @@
-import React from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useState } from 'react';
+import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
+import MuscleBodyGraph from '@/components/MuscleBodyGraph';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
-// Mock data for insights
-const insights = [
-  {
-    title: "Shoulders Development",
-    description: "Your shoulders are well-developed. Continue focusing on lateral raises to maintain the balance between front and rear deltoids.",
-    icon: "💪",
-  },
-  {
-    title: "Leg Symmetry",
-    description: "There's a slight imbalance in your quadriceps development. Consider adding more unilateral exercises like single-leg extensions.",
-    icon: "🦵",
-  },
-  {
-    title: "Core Strength",
-    description: "Your core could use more definition. Try adding more progressive overload to your ab workouts with weighted exercises.",
-    icon: "⚡",
-  }
-];
+const { width } = Dimensions.get('window');
 
-const FocusArea = ({ title, description }: { title: string; description: string }) => {
-  return (
-    <View style={styles.focusAreaContainer}>
-      <View style={styles.focusAreaHeader}>
-        <ThemedText style={styles.focusAreaTitle}>{title}</ThemedText>
-      </View>
-      <ThemedText style={styles.focusAreaDescription}>{description}</ThemedText>
-    </View>
-  );
+// Mock user muscle group scores (0-100)
+const muscleGroupScores = {
+  chest: 85,
+  deltoids: 78, // shoulders -> deltoids (proper muscle name)
+  biceps: 89,
+  triceps: 83,
+  forearm: 75,
+  abs: 68,
+  'upper-back': 72,
+  obliques: 74,
+  quadriceps: 65,
+  hamstring: 58,
+  calves: 92,
+  gluteal: 61,
 };
+
+// Function to get color based on score
+const getScoreColor = (score: number): string => {
+  if (score >= 80) return '#4CD964'; // Green for strengths
+  if (score >= 70) return '#FFD60A'; // Yellow for average
+  return '#FF3B30'; // Red for areas to improve
+};
+
+// Function to get intensity based on score (1-3 scale for the body highlighter)
+const getIntensity = (score: number): number => {
+  if (score >= 80) return 3; // Highest intensity (green)
+  if (score >= 70) return 2; // Medium intensity (yellow)
+  return 1; // Lowest intensity (red)
+};
+
+// Convert muscle scores to body highlighter format
+const convertToBodyHighlighter = (scores: typeof muscleGroupScores) => {
+  return Object.entries(scores).map(([muscle, score]) => ({
+    slug: muscle as any, // Cast to avoid TypeScript issues with specific slug types
+    intensity: getIntensity(score),
+  }));
+};
+
+// Quick Insight Card Component
+const InsightCard = ({ icon, title, description, color }: { icon: string; title: string; description: string; color: string }) => (
+  <View style={styles.insightCard}>
+    <View style={[styles.insightIconContainer, { backgroundColor: color + '20' }]}>
+      <Ionicons name={icon as any} size={20} color={color} />
+    </View>
+    <View style={styles.insightContent}>
+      <ThemedText style={styles.insightTitle}>{title}</ThemedText>
+      <ThemedText style={styles.insightDescription}>{description}</ThemedText>
+    </View>
+  </View>
+);
+
+// Score Legend Component
+const ScoreLegend = () => (
+  <View style={styles.legendContainer}>
+    <View style={styles.legendItem}>
+      <View style={[styles.legendColor, { backgroundColor: '#4CD964' }]} />
+      <ThemedText style={styles.legendText}>Strengths (80+)</ThemedText>
+    </View>
+    <View style={styles.legendItem}>
+      <View style={[styles.legendColor, { backgroundColor: '#FFD60A' }]} />
+      <ThemedText style={styles.legendText}>Good (70-79)</ThemedText>
+    </View>
+    <View style={styles.legendItem}>
+      <View style={[styles.legendColor, { backgroundColor: '#FF3B30' }]} />
+      <ThemedText style={styles.legendText}>Focus Area (Below 70)</ThemedText>
+    </View>
+  </View>
+);
+
+// Muscle Group Grid Component
+const MuscleGroupGrid = ({ scores }: { scores: typeof muscleGroupScores }) => (
+  <View style={styles.muscleGridContainer}>
+    {Object.entries(scores).map(([muscle, score]) => (
+      <View key={muscle} style={styles.muscleGridItem}>
+        <View style={[styles.muscleScoreCircle, { backgroundColor: getScoreColor(score) }]}>
+          <ThemedText style={styles.muscleScoreNumber}>{score}</ThemedText>
+        </View>
+        <ThemedText style={styles.muscleName}>
+          {muscle.charAt(0).toUpperCase() + muscle.slice(1).replace('-', ' ')}
+        </ThemedText>
+      </View>
+    ))}
+  </View>
+);
 
 export default function InsightsScreen() {
   const colorScheme = useColorScheme();
   const accentColor = Colors[colorScheme ?? 'dark'].tint;
+  const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
+  const [bodyView, setBodyView] = useState<{ side: 'front' | 'back', gender: 'male' | 'female' }>({
+    side: 'front',
+    gender: 'male'
+  });
+
+  // Calculate overall insights
+  const scores = Object.values(muscleGroupScores);
+  const averageScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+  const strengths = Object.entries(muscleGroupScores).filter(([_, score]) => score >= 80);
+  const focusAreas = Object.entries(muscleGroupScores).filter(([_, score]) => score < 70);
+
+  const handleBodyPartPress = (slug: string, side?: 'left' | 'right') => {
+    setSelectedMuscle(slug);
+    console.log('Pressed muscle:', slug, side ? `(${side} side)` : '');
+  };
+
+  const toggleBodyView = () => {
+    setBodyView(prev => ({ ...prev, side: prev.side === 'front' ? 'back' : 'front' }));
+  };
+
+  const toggleGender = () => {
+    setBodyView(prev => ({ ...prev, gender: prev.gender === 'male' ? 'female' : 'male' }));
+  };
 
   return (
     <ThemedView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <ThemedText type="title" style={styles.title}>Body Insights</ThemedText>
         
-        {/* Latest Analysis Summary */}
-        <View style={styles.summaryContainer}>
-          <ThemedText type="subtitle" style={styles.sectionTitle}>Latest Analysis</ThemedText>
-          <View style={styles.analysisContainer}>
-            <ThemedText style={styles.analysisSummary}>
-              Your physique is well-balanced with good symmetry. There's potential for further improvement in lower body development.
-            </ThemedText>
-          </View>
+        {/* Overall Score */}
+        <View style={styles.overallScoreContainer}>
+          <LinearGradient
+            colors={[accentColor, '#8b5cf6']}
+            style={styles.scoreCircle}
+          >
+            <ThemedText style={styles.scoreText}>{averageScore}</ThemedText>
+            <ThemedText style={styles.scoreLabel}>Overall</ThemedText>
+          </LinearGradient>
         </View>
-        
-        {/* AI Insights */}
-        <View style={styles.insightsContainer}>
-          <ThemedText type="subtitle" style={styles.sectionTitle}>AI Coach Insights</ThemedText>
+
+        {/* Body Diagram */}
+        <View style={styles.diagramSection}>
+          <ThemedText type="subtitle" style={styles.sectionTitle}>Your Physique Map</ThemedText>
+          <ThemedText style={styles.sectionSubtitle}>Tap muscle groups to see details</ThemedText>
           
-          {insights.map((insight, index) => (
-            <View key={index} style={styles.insightCard}>
-              <View style={styles.insightIconContainer}>
-                <ThemedText style={styles.insightIcon}>{insight.icon}</ThemedText>
-              </View>
-              <View style={styles.insightContent}>
-                <ThemedText style={styles.insightTitle}>{insight.title}</ThemedText>
-                <ThemedText style={styles.insightDescription}>{insight.description}</ThemedText>
+          {/* Body View Controls */}
+          <View style={styles.controlsContainer}>
+            <TouchableOpacity style={styles.controlButton} onPress={toggleBodyView}>
+              <Ionicons name="swap-horizontal" size={16} color="white" />
+              <ThemedText style={styles.controlText}>{bodyView.side}</ThemedText>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.controlButton} onPress={toggleGender}>
+              <Ionicons name="person" size={16} color="white" />
+              <ThemedText style={styles.controlText}>{bodyView.gender}</ThemedText>
+            </TouchableOpacity>
+          </View>
+
+          <MuscleBodyGraph
+            highlightedMuscles={convertToBodyHighlighter(muscleGroupScores)}
+            gender={bodyView.gender}
+            side={bodyView.side}
+            onBodyPartPress={handleBodyPartPress}
+            scale={1.4}
+            colors={['#FF3B30', '#FFD60A', '#4CD964']}
+            border="rgba(255,255,255,0.3)"
+          />
+          
+          <ScoreLegend />
+        </View>
+
+        {/* Selected Muscle Info */}
+        {selectedMuscle && (
+          <View style={styles.selectedMuscleContainer}>
+            <View style={styles.muscleHeader}>
+              <ThemedText style={styles.muscleTitle}>
+                {selectedMuscle.charAt(0).toUpperCase() + selectedMuscle.slice(1).replace('-', ' ')}
+              </ThemedText>
+              <View style={[styles.muscleScore, { backgroundColor: getScoreColor(muscleGroupScores[selectedMuscle as keyof typeof muscleGroupScores] || 0) }]}>
+                <ThemedText style={styles.muscleScoreText}>
+                  {muscleGroupScores[selectedMuscle as keyof typeof muscleGroupScores] || 0}
+                </ThemedText>
               </View>
             </View>
-          ))}
+            <ThemedText style={styles.muscleAdvice}>
+              {(() => {
+                const score = muscleGroupScores[selectedMuscle as keyof typeof muscleGroupScores] || 0;
+                if (score >= 80) return "Excellent development! Maintain with current routine.";
+                if (score >= 70) return "Good progress. Consider increasing volume slightly.";
+                return "Focus area. Increase training frequency and volume.";
+              })()}
+            </ThemedText>
+          </View>
+        )}
+
+        {/* Muscle Group Scores */}
+        <View style={styles.muscleScoresSection}>
+          <ThemedText type="subtitle" style={styles.sectionTitle}>Muscle Group Scores</ThemedText>
+          <MuscleGroupGrid scores={muscleGroupScores} />
         </View>
-        
-        {/* Focus Areas */}
-        <View style={styles.focusContainer}>
-          <ThemedText type="subtitle" style={styles.sectionTitle}>Recommended Focus Areas</ThemedText>
+
+        {/* Quick Insights */}
+        <View style={styles.quickInsightsContainer}>
+          <ThemedText type="subtitle" style={styles.sectionTitle}>Quick Insights</ThemedText>
           
-          <FocusArea 
-            title="Leg Training" 
-            description="Increase quad and hamstring development with higher volume training. Focus on compound movements like squats and Romanian deadlifts to stimulate growth."
+          <InsightCard
+            icon="trending-up"
+            title={`${strengths.length} Strong Areas`}
+            description={strengths.map(([name]) => name.replace('-', ' ')).join(', ')}
+            color="#4CD964"
           />
           
-          <FocusArea 
-            title="Back Width" 
-            description="Focus on increasing overall back width with pull-ups and wide-grip rows. Add in progressive overload by increasing volume or weight each week."
+          <InsightCard
+            icon="fitness"
+            title={`${focusAreas.length} Focus Areas`}
+            description={focusAreas.map(([name]) => name.replace('-', ' ')).join(', ')}
+            color="#FF3B30"
           />
           
-          <FocusArea 
-            title="Arms Proportion" 
-            description="Develop triceps further to balance arm proportion. Include exercises like close-grip bench press, dips, and overhead extensions for complete triceps development."
+          <InsightCard
+            icon="analytics"
+            title="AI Recommendation"
+            description="Focus on leg development for balanced physique"
+            color={accentColor}
           />
         </View>
-        
-        {/* Get Personalized Plan */}
-        <TouchableOpacity 
-          style={[styles.planButton, { backgroundColor: accentColor }]}
-          onPress={() => {/* Plan functionality would go here */}}>
-          <ThemedText style={styles.planButtonText}>Get Personalized Workout Plan</ThemedText>
+
+        {/* Action Button */}
+        <TouchableOpacity style={[styles.actionButton, { backgroundColor: accentColor }]}>
+          <LinearGradient
+            colors={[accentColor, '#8b5cf6']}
+            style={styles.buttonGradient}
+          >
+            <Ionicons name="rocket" size={20} color="white" style={{ marginRight: 8 }} />
+            <ThemedText style={styles.buttonText}>Get Personalized Plan</ThemedText>
+          </LinearGradient>
         </TouchableOpacity>
       </ScrollView>
     </ThemedView>
@@ -106,10 +244,11 @@ export default function InsightsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    backgroundColor: '#000000',
   },
   scrollContent: {
-    paddingBottom: 90,
+    paddingBottom: 120,
+    paddingHorizontal: 20,
   },
   title: {
     fontSize: 28,
@@ -117,27 +256,158 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 60,
     marginBottom: 24,
+    color: 'white',
   },
-  sectionTitle: {
-    marginBottom: 16,
+  overallScoreContainer: {
+    alignItems: 'center',
+    marginBottom: 32,
   },
-  summaryContainer: {
+  scoreCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scoreText: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  scoreLabel: {
+    fontSize: 12,
+    color: 'white',
+    opacity: 0.8,
+  },
+  diagramSection: {
     marginBottom: 24,
   },
-  analysisContainer: {
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: 'white',
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.6)',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  controlsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 16,
+    gap: 12,
+  },
+  controlButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  controlText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  legendContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 16,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  legendColor: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 6,
+  },
+  legendText: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  selectedMuscleContainer: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 16,
     padding: 16,
+    marginBottom: 24,
   },
-  analysisSummary: {
+  muscleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  muscleTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  muscleScore: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  muscleScoreText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  muscleAdvice: {
+    color: 'rgba(255,255,255,0.8)',
     lineHeight: 20,
   },
-  insightsContainer: {
+  muscleScoresSection: {
+    marginBottom: 24,
+  },
+  muscleGridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  muscleGridItem: {
+    width: '48%',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  muscleScoreCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  muscleScoreNumber: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  muscleName: {
+    color: 'white',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  quickInsightsContainer: {
     marginBottom: 24,
   },
   insightCard: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -146,13 +416,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(156, 71, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
-  },
-  insightIcon: {
-    fontSize: 18,
   },
   insightContent: {
     flex: 1,
@@ -161,44 +427,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 4,
+    color: 'white',
   },
   insightDescription: {
-    lineHeight: 20,
-    opacity: 0.8,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+    lineHeight: 18,
   },
-  focusContainer: {
-    marginBottom: 24,
-  },
-  focusAreaContainer: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+  actionButton: {
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    overflow: 'hidden',
   },
-  focusAreaHeader: {
+  buttonGradient: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  focusAreaTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  focusAreaDescription: {
-    lineHeight: 20,
-    opacity: 0.8,
-  },
-  planButton: {
-    height: 56,
-    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
   },
-  planButtonText: {
+  buttonText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
   },
 }); 
