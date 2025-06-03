@@ -7,7 +7,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const primaryColor = '#ffffff';
+  const primaryColor = '#9C47FF'; // Purple color for selected tab
 
   return (
     <Tabs
@@ -16,20 +16,31 @@ export default function TabLayout() {
         tabBarInactiveTintColor: '#bbb',
         headerShown: false,
         tabBarButton: props => <HapticTab {...props} />,
+        tabBarShowLabel: false, // Hide text labels
         tabBarStyle: {
           backgroundColor: '#1a1a1a',
           borderTopWidth: 0,
           elevation: 0,
-          height: 60,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
-          marginTop: 4,
-        },
-        tabBarItemStyle: {
+          height: 70,
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
           paddingTop: 8,
           paddingBottom: 8,
+          shadowColor: '#000',
+          shadowOffset: {
+            width: 0,
+            height: -4,
+          },
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+        },
+        tabBarItemStyle: {
+          paddingTop: 12,
+          paddingBottom: 12,
         },
       }}>
       <Tabs.Screen
@@ -37,7 +48,7 @@ export default function TabLayout() {
         options={{
           title: 'Scan',
           tabBarIcon: ({ color }) => (
-            <Ionicons name="camera" size={24} color={color} />
+            <Ionicons name="camera" size={28} color={color} />
           ),
         }}
       />
@@ -46,7 +57,7 @@ export default function TabLayout() {
         options={{
           title: 'Progress',
           tabBarIcon: ({ color }) => (
-            <Ionicons name="stats-chart" size={24} color={color} />
+            <Ionicons name="stats-chart" size={28} color={color} />
           ),
         }}
       />
@@ -55,7 +66,7 @@ export default function TabLayout() {
         options={{
           title: 'Insights',
           tabBarIcon: ({ color }) => (
-            <Ionicons name="bulb" size={24} color={color} />
+            <Ionicons name="bulb" size={28} color={color} />
           ),
         }}
       />
@@ -64,7 +75,7 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color }) => (
-            <Ionicons name="person" size={24} color={color} />
+            <Ionicons name="person" size={28} color={color} />
           ),
         }}
       />
