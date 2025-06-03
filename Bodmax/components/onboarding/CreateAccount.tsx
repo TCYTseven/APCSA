@@ -1,6 +1,19 @@
-import React, { useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  Dimensions,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
 import { Colors } from '../../constants/Colors';
+
+const { width, height } = Dimensions.get('window');
 
 // You may need to add these icons to your assets
 const googleIcon = 'https://www.svgrepo.com/show/303108/google-icon-logo.svg';
@@ -23,6 +36,7 @@ type CreateAccountProps = {
 const CreateAccount = ({ onComplete, onBack, onUpdateData, userData }: CreateAccountProps) => {
   const [email, setEmail] = useState(userData.email || '');
   const [password, setPassword] = useState(userData.password || '');
+  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({
     email: false,
     password: false,
@@ -30,9 +44,40 @@ const CreateAccount = ({ onComplete, onBack, onUpdateData, userData }: CreateAcc
   const [focusedInput, setFocusedInput] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Animation values
+  const emailLabelAnimation = useRef(new Animated.Value(email ? 1 : 0)).current;
+  const passwordLabelAnimation = useRef(new Animated.Value(password ? 1 : 0)).current;
+  const fadeAnimation = useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    Animated.timing(fadeAnimation, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const animateLabel = (animation: Animated.Value, hasValue: boolean, isFocused: boolean) => {
+    Animated.timing(animation, {
+      toValue: hasValue || isFocused ? 1 : 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  };
+
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
+  };
+
+  const getPasswordStrength = (password: string) => {
+    if (password.length === 0) return { strength: 0, text: '', color: '#666' };
+    if (password.length < 6) return { strength: 1, text: 'Weak', color: '#FF3B30' };
+    if (password.length < 8) return { strength: 2, text: 'Fair', color: '#FFCC00' };
+    if (password.match(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)) {
+      return { strength: 3, text: 'Strong', color: '#4CD964' };
+    }
+    return { strength: 2, text: 'Good', color: '#FFCC00' };
   };
 
   const handleCreateAccount = () => {
@@ -46,7 +91,6 @@ const CreateAccount = ({ onComplete, onBack, onUpdateData, userData }: CreateAcc
     if (!newErrors.email && !newErrors.password) {
       setLoading(true);
       onUpdateData({ email, password });
-      // Simulate async for demo; replace with real async if needed
       setTimeout(() => {
         setLoading(false);
         onComplete();
@@ -54,287 +98,326 @@ const CreateAccount = ({ onComplete, onBack, onUpdateData, userData }: CreateAcc
     }
   };
 
+  const passwordStrength = getPasswordStrength(password);
+
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer} style={{ backgroundColor: Colors.dark.background }}>
-      <View style={styles.container}>
-        <Text style={styles.title}>Create your account</Text>
-        <Text style={styles.subtitle}>Sign up or log in</Text>
+    <View style={{ flex: 1, backgroundColor: '#000000' }}>
+      {/* Background Elements */}
+      <View style={{ position: 'absolute', top: -100, right: -100, width: 200, height: 200, borderRadius: 100, backgroundColor: Colors.dark.tint, opacity: 0.1 }} />
+      <View style={{ position: 'absolute', bottom: -80, left: -80, width: 160, height: 160, borderRadius: 80, backgroundColor: Colors.dark.tint, opacity: 0.08 }} />
 
-        <View style={styles.formContainer}>
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Email</Text>
-            <TextInput
-              style={[
-                styles.input,
-                errors.email && styles.inputError,
-                focusedInput === 'email' && styles.inputFocused,
-              ]}
-              placeholder="Enter your email"
-              placeholderTextColor="#aaa"
-              value={email}
-              onFocus={() => setFocusedInput('email')}
-              onBlur={() => setFocusedInput('')}
-              onChangeText={(text) => {
-                setEmail(text);
-                setErrors({ ...errors, email: false });
-              }}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            {errors.email && (
-              <Text style={styles.errorText}>Please enter a valid email address</Text>
-            )}
+      <ScrollView 
+        contentContainerStyle={{ 
+          flexGrow: 1, 
+          paddingHorizontal: 20, 
+          paddingTop: Math.max(40, height * 0.08), 
+          paddingBottom: Math.max(20, height * 0.05),
+          minHeight: height
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View style={{ opacity: fadeAnimation, flex: 1, justifyContent: 'center' }}>
+          {/* Header */}
+          <View style={{ alignItems: 'center', marginBottom: 24 }}>
+            <View style={{ marginBottom: 12 }}>
+              <LinearGradient
+                colors={[Colors.dark.tint, '#7C3AED']}
+                style={{ width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center' }}
+              >
+                <Ionicons name="person-add" size={26} color="white" />
+              </LinearGradient>
+            </View>
+            <Text style={{ fontSize: 26, fontWeight: 'bold', color: 'white', textAlign: 'center', marginBottom: 4 }}>
+              Create Account
+            </Text>
+            <Text style={{ fontSize: 15, color: '#9BA1A6', textAlign: 'center' }}>
+              Join the fitness revolution
+            </Text>
           </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Password</Text>
-            <TextInput
-              style={[
-                styles.input,
-                errors.password && styles.inputError,
-                focusedInput === 'password' && styles.inputFocused,
-              ]}
-              placeholder="Create a password"
-              placeholderTextColor="#aaa"
-              value={password}
-              onFocus={() => setFocusedInput('password')}
-              onBlur={() => setFocusedInput('')}
-              onChangeText={(text) => {
-                setPassword(text);
-                setErrors({ ...errors, password: false });
-              }}
-              secureTextEntry
-            />
-            {errors.password && (
-              <Text style={styles.errorText}>Password must be at least 6 characters</Text>
-            )}
+          {/* Form Container */}
+          <View style={{ 
+            backgroundColor: 'rgba(255,255,255,0.05)', 
+            borderRadius: 18, 
+            padding: 18, 
+            marginBottom: 20,
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.1)'
+          }}>
+            {/* Email Input */}
+            <View style={{ marginBottom: 18 }}>
+              <View style={{ position: 'relative' }}>
+                <Animated.Text
+                  style={{
+                    position: 'absolute',
+                    left: 16,
+                    top: emailLabelAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [13, -8],
+                    }),
+                    fontSize: emailLabelAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [15, 12],
+                    }),
+                    color: errors.email ? '#FF3B30' : focusedInput === 'email' ? Colors.dark.tint : '#9BA1A6',
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    paddingHorizontal: 4,
+                    zIndex: 1,
+                  }}
+                >
+                  Email Address
+                </Animated.Text>
+                
+                <TextInput
+                  style={{
+                    backgroundColor: 'rgba(255,255,255,0.05)',
+                    color: 'white',
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 13,
+                    fontSize: 15,
+                    borderWidth: 2,
+                    borderColor: errors.email ? '#FF3B30' : focusedInput === 'email' ? Colors.dark.tint : 'rgba(255,255,255,0.15)',
+                  }}
+                  placeholder=""
+                  placeholderTextColor="#666"
+                  value={email}
+                  onFocus={() => {
+                    setFocusedInput('email');
+                    animateLabel(emailLabelAnimation, email.length > 0, true);
+                  }}
+                  onBlur={() => {
+                    setFocusedInput('');
+                    animateLabel(emailLabelAnimation, email.length > 0, false);
+                  }}
+                  onChangeText={(text) => {
+                    setEmail(text);
+                    setErrors({ ...errors, email: false });
+                    animateLabel(emailLabelAnimation, text.length > 0, focusedInput === 'email');
+                  }}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                />
+                
+                {email.length > 0 && (
+                  <View style={{ position: 'absolute', right: 16, top: 13 }}>
+                    <Ionicons 
+                      name={validateEmail(email) ? "checkmark-circle" : "close-circle"} 
+                      size={18} 
+                      color={validateEmail(email) ? '#4CD964' : '#FF3B30'} 
+                    />
+                  </View>
+                )}
+              </View>
+              
+              {errors.email && (
+                <Text style={{ color: '#FF3B30', fontSize: 11, marginTop: 4, marginLeft: 4 }}>
+                  Please enter a valid email address
+                </Text>
+              )}
+            </View>
+
+            {/* Password Input */}
+            <View style={{ marginBottom: 14 }}>
+              <View style={{ position: 'relative' }}>
+                <Animated.Text
+                  style={{
+                    position: 'absolute',
+                    left: 16,
+                    top: passwordLabelAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [13, -8],
+                    }),
+                    fontSize: passwordLabelAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [15, 12],
+                    }),
+                    color: errors.password ? '#FF3B30' : focusedInput === 'password' ? Colors.dark.tint : '#9BA1A6',
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    paddingHorizontal: 4,
+                    zIndex: 1,
+                  }}
+                >
+                  Password
+                </Animated.Text>
+                
+                <TextInput
+                  style={{
+                    backgroundColor: 'rgba(255,255,255,0.05)',
+                    color: 'white',
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 13,
+                    paddingRight: 48,
+                    fontSize: 15,
+                    borderWidth: 2,
+                    borderColor: errors.password ? '#FF3B30' : focusedInput === 'password' ? Colors.dark.tint : 'rgba(255,255,255,0.15)',
+                  }}
+                  placeholder=""
+                  placeholderTextColor="#666"
+                  value={password}
+                  onFocus={() => {
+                    setFocusedInput('password');
+                    animateLabel(passwordLabelAnimation, password.length > 0, true);
+                  }}
+                  onBlur={() => {
+                    setFocusedInput('');
+                    animateLabel(passwordLabelAnimation, password.length > 0, false);
+                  }}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    setErrors({ ...errors, password: false });
+                    animateLabel(passwordLabelAnimation, text.length > 0, focusedInput === 'password');
+                  }}
+                  secureTextEntry={!showPassword}
+                  autoComplete="password"
+                />
+                
+                <TouchableOpacity
+                  style={{ position: 'absolute', right: 16, top: 13 }}
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  <Ionicons 
+                    name={showPassword ? "eye-off" : "eye"} 
+                    size={18} 
+                    color="#9BA1A6" 
+                  />
+                </TouchableOpacity>
+              </View>
+              
+              {/* Password Strength */}
+              {password.length > 0 && (
+                <View style={{ marginTop: 6 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 }}>
+                    <Text style={{ color: '#9BA1A6', fontSize: 10 }}>Password Strength</Text>
+                    <Text style={{ color: passwordStrength.color, fontSize: 10, fontWeight: '600' }}>
+                      {passwordStrength.text}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 2 }}>
+                    {[1, 2, 3].map((level) => (
+                      <View
+                        key={level}
+                        style={{
+                          flex: 1,
+                          height: 2,
+                          borderRadius: 1,
+                          backgroundColor: passwordStrength.strength >= level ? passwordStrength.color : 'rgba(255,255,255,0.1)'
+                        }}
+                      />
+                    ))}
+                  </View>
+                </View>
+              )}
+              
+              {errors.password && (
+                <Text style={{ color: '#FF3B30', fontSize: 11, marginTop: 4, marginLeft: 4 }}>
+                  Password must be at least 6 characters
+                </Text>
+              )}
+            </View>
+
+            {/* Security Note */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 14, backgroundColor: 'rgba(156,71,255,0.1)', borderRadius: 8 }}>
+              <Ionicons name="shield-checkmark" size={12} color={Colors.dark.tint} />
+              <Text style={{ color: '#9BA1A6', fontSize: 11, marginLeft: 5 }}>
+                Your data is encrypted and secure
+              </Text>
+            </View>
           </View>
-        </View>
 
-        <View style={styles.securityContainer}>
-          <Text style={styles.securityText}>
-            <Text style={styles.lockIcon}>🔒</Text> Your information is securely stored
-          </Text>
-        </View>
+          {/* Action Buttons */}
+          <View style={{ marginBottom: 18 }}>
+            <TouchableOpacity
+              onPress={handleCreateAccount}
+              disabled={loading}
+              style={{ marginBottom: 10 }}
+            >
+              <LinearGradient
+                colors={loading ? ['#666', '#666'] : [Colors.dark.tint, '#7C3AED']}
+                style={{ paddingVertical: 15, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}
+              >
+                {loading ? (
+                  <ActivityIndicator color="white" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="rocket" size={16} color="white" style={{ marginRight: 6 }} />
+                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 15 }}>Create Account</Text>
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
 
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.backButton} onPress={onBack}>
-            <Text style={styles.backButtonText}>Back</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              onPress={onBack}
+              style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 12, paddingVertical: 13 }}
+            >
+              <Text style={{ color: '#9BA1A6', fontWeight: '600', textAlign: 'center', fontSize: 14 }}>
+                Back
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-          <TouchableOpacity
-            style={[styles.createButton, loading && styles.createButtonDisabled]}
-            onPress={handleCreateAccount}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.createButtonText}>Create Account</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+          {/* Divider */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
+            <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.15)' }} />
+            <Text style={{ color: '#9BA1A6', paddingHorizontal: 10, fontSize: 11 }}>or continue with</Text>
+            <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.15)' }} />
+          </View>
 
-        <View style={styles.dividerContainer}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or</Text>
-          <View style={styles.dividerLine} />
-        </View>
+          {/* Social Login Buttons */}
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+            <TouchableOpacity style={{ flex: 1 }}>
+              <View style={{
+                backgroundColor: 'rgba(255,255,255,0.05)',
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.1)',
+                borderRadius: 12,
+                paddingVertical: 11,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <Ionicons name="logo-google" size={14} color="#4285F4" />
+                <Text style={{ color: 'white', fontWeight: '600', marginLeft: 6, fontSize: 13 }}>
+                  Google
+                </Text>
+              </View>
+            </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.socialButton, styles.socialButtonCompact, { marginBottom: 8 }]}>
-          <Image source={{ uri: googleIcon }} style={styles.socialIconCompact} />
-          <Text style={styles.socialButtonText}>Continue with Google</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.socialButton, styles.socialButtonCompact]}>
-          <Image source={{ uri: appleIcon }} style={styles.socialIconCompact} />
-          <Text style={styles.socialButtonText}>Continue with Apple</Text>
-        </TouchableOpacity>
+            <TouchableOpacity style={{ flex: 1 }}>
+              <View style={{
+                backgroundColor: 'rgba(255,255,255,0.05)',
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.1)',
+                borderRadius: 12,
+                paddingVertical: 11,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <Ionicons name="logo-apple" size={14} color="white" />
+                <Text style={{ color: 'white', fontWeight: '600', marginLeft: 6, fontSize: 13 }}>
+                  Apple
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
 
-        <View style={styles.termsContainer}>
-          <Text style={styles.termsText}>
-            By creating an account, you agree to our{' '}
-            <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
-            <Text style={styles.termsLink}>Privacy Policy</Text>
-          </Text>
-        </View>
-      </View>
-    </ScrollView>
+          {/* Terms */}
+          <View style={{ paddingHorizontal: 6 }}>
+            <Text style={{ color: '#9BA1A6', textAlign: 'center', fontSize: 10, lineHeight: 14 }}>
+              By creating an account, you agree to our{' '}
+              <Text style={{ color: Colors.dark.tint, fontWeight: '600' }}>Terms of Service</Text>
+              {' '}and{' '}
+              <Text style={{ color: Colors.dark.tint, fontWeight: '600' }}>Privacy Policy</Text>
+            </Text>
+          </View>
+        </Animated.View>
+      </ScrollView>
+    </View>
   );
 };
-
-const styles = StyleSheet.create({
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
-  container: {
-    flex: 1,
-    padding: 20,
-    maxWidth: 400,
-    alignSelf: 'center',
-    backgroundColor: Colors.dark.background,
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    marginBottom: 4,
-    textAlign: 'center',
-    color: '#fff',
-  },
-  subtitle: {
-    fontSize: 13,
-    color: '#f9f9f9',
-    marginBottom: 18,
-    textAlign: 'center',
-  },
-  socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    justifyContent: 'center',
-  },
-  socialButtonCompact: {
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    minHeight: 32,
-    minWidth: 0,
-    borderRadius: 10,
-  },
-  socialIcon: {
-    width: 20,
-    height: 20,
-    marginRight: 10,
-    resizeMode: 'contain',
-  },
-  socialIconCompact: {
-    width: 18,
-    height: 18,
-    marginRight: 8,
-    resizeMode: 'contain',
-  },
-  socialButtonText: {
-    color: '#222',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 18,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#333',
-  },
-  dividerText: {
-    paddingHorizontal: 10,
-    color: '#aaa',
-    fontSize: 12,
-  },
-  formContainer: {
-    marginBottom: 18,
-  },
-  inputContainer: {
-    marginBottom: 18,
-  },
-  inputLabel: {
-    fontSize: 13,
-    fontWeight: '500',
-    marginBottom: 4,
-    color: '#f9f9f9',
-  },
-  input: {
-    backgroundColor: Colors.dark.card,
-    color: '#fff',
-    borderRadius: 10,
-    padding: 10,
-    fontSize: 14,
-    borderWidth: 1,
-    borderColor: Colors.dark.icon,
-    marginBottom: 6,
-  },
-  inputError: {
-    borderColor: Colors.dark.tint,
-  },
-  inputFocused: {
-    borderColor: '#8b5cf6',
-  },
-  errorText: {
-    color: '#ef4444',
-    marginTop: 4,
-    fontSize: 12,
-  },
-  termsContainer: {
-    marginBottom: 18,
-    marginTop: 10,
-  },
-  termsText: {
-    fontSize: 11,
-    color: '#f9f9f9',
-    textAlign: 'center',
-    lineHeight: 16,
-  },
-  termsLink: {
-    color: '#8b5cf6',
-    fontWeight: '500',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 4,
-    marginBottom: 0,
-    gap: 10,
-  },
-  backButton: {
-    backgroundColor: Colors.dark.card,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    flex: 1,
-  },
-  backButtonText: {
-    color: Colors.dark.icon,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  createButton: {
-    backgroundColor: '#8b5cf6',
-    paddingVertical: 16,
-    borderRadius: 10,
-    alignItems: 'center',
-    flex: 1,
-    marginLeft: 10,
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  createButtonDisabled: {
-    opacity: 0.7,
-  },
-  createButtonText: {
-    color: 'white',
-    fontWeight: '800',
-    fontSize: 16,
-  },
-  securityContainer: {
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  securityText: {
-    color: '#8b5cf6',
-    fontSize: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  lockIcon: {
-    fontSize: 13,
-    marginRight: 4,
-  },
-});
 
 export default CreateAccount;

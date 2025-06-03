@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import { Animated, Dimensions, Image, LayoutChangeEvent, Modal, Text as RNText, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, Line } from 'react-native-svg';
@@ -434,8 +435,8 @@ export default function ProgressScreen() {
         {/* Compare Button */}
         <TouchableOpacity 
           style={[styles.compareButton, { backgroundColor: accentColor }]}
-          onPress={() => {/* Compare functionality would go here */}}>
-          <ThemedText style={styles.compareButtonText}>Compare Before/After</ThemedText>
+          onPress={() => router.push('/insights')}>
+          <ThemedText style={styles.compareButtonText}>Improve Your Scores</ThemedText>
         </TouchableOpacity>
 
         {/* Modal for scan details */}
