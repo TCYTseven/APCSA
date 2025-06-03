@@ -2,13 +2,18 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { Dimensions, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 
+const { width, height } = Dimensions.get('window');
+
 export default function PhotoInsightsScreen() {
+  const [timerDuration, setTimerDuration] = useState(0); // 0, 5, or 10 seconds
+  const [cameraType, setCameraType] = useState<'front' | 'back'>('back');
+
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -29,10 +34,23 @@ export default function PhotoInsightsScreen() {
       return;
     }
 
+    // Show timer countdown if needed
+    if (timerDuration > 0) {
+      // Here you would implement the timer countdown UI
+      setTimeout(() => {
+        launchCamera();
+      }, timerDuration * 1000);
+    } else {
+      launchCamera();
+    }
+  };
+
+  const launchCamera = async () => {
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [3, 4],
       quality: 1,
+      cameraType: cameraType === 'front' ? ImagePicker.CameraType.front : ImagePicker.CameraType.back,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -40,58 +58,81 @@ export default function PhotoInsightsScreen() {
     }
   };
 
+  const toggleTimer = () => {
+    setTimerDuration(prev => {
+      if (prev === 0) return 5;
+      if (prev === 5) return 10;
+      return 0;
+    });
+  };
+
+  const toggleCamera = () => {
+    setCameraType(prev => prev === 'front' ? 'back' : 'front');
+  };
+
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>Quick Tips</ThemedText>
+      <ThemedText type="title" style={styles.title}>Capture Your Photo</ThemedText>
       
-      <View style={styles.tipsContainer}>
-        <View style={styles.tipRow}>
-          <Ionicons name="sunny" size={20} color="#FFD700" style={styles.icon} />
-          <ThemedText style={styles.tipText}>Good lighting, avoid shadows</ThemedText>
+      <View style={styles.cardContainer}>
+        {/* Quick Tips */}
+        <View style={styles.tipsSection}>
+          <View style={styles.tipRow}>
+            <Ionicons name="sunny" size={16} color="#FFD700" />
+            <ThemedText style={styles.tipText}>Good lighting</ThemedText>
+          </View>
+          <View style={styles.tipRow}>
+            <Ionicons name="resize" size={16} color="#4CAF50" />
+            <ThemedText style={styles.tipText}>6-8 feet away</ThemedText>
+          </View>
+          <View style={styles.tipRow}>
+            <Ionicons name="shirt" size={16} color="#2196F3" />
+            <ThemedText style={styles.tipText}>Form-fitting clothes</ThemedText>
+          </View>
         </View>
 
-        <View style={styles.tipRow}>
-          <Ionicons name="resize" size={20} color="#4CAF50" style={styles.icon} />
-          <ThemedText style={styles.tipText}>Stand 6-8 feet from camera</ThemedText>
-        </View>
+        {/* Camera Area */}
+        <TouchableOpacity style={styles.cameraArea} onPress={takePhoto}>
+          <LinearGradient
+            colors={['rgba(136, 68, 238, 0.1)', 'rgba(136, 68, 238, 0.05)']}
+            style={styles.cameraGradient}
+          >
+            <Ionicons name="camera" size={48} color="#8844ee" />
+            <ThemedText style={styles.cameraText}>
+              Tap to take photo{timerDuration > 0 ? ` (${timerDuration}s timer)` : ''}
+            </ThemedText>
+          </LinearGradient>
+        </TouchableOpacity>
 
-        <View style={styles.tipRow}>
-          <Ionicons name="shirt" size={20} color="#2196F3" style={styles.icon} />
-          <ThemedText style={styles.tipText}>Wear form-fitting clothes</ThemedText>
-        </View>
-      </View>
-
-      <View style={styles.uploadContainer}>
-        <View style={styles.uploadArea}>
-          <Ionicons name="camera" size={48} color="#8844ee" />
-          <ThemedText style={styles.uploadText}>
-            Choose how to capture your photo
-          </ThemedText>
-        </View>
-
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={styles.button}
-            onPress={pickImage}>
-            <LinearGradient
-              colors={['#8844ee', '#6622cc']}
-              style={styles.gradient}>
-              <Ionicons name="images" size={24} color="white" style={styles.buttonIcon} />
-              <ThemedText style={styles.buttonText}>Choose from Gallery</ThemedText>
-            </LinearGradient>
+        {/* Camera Controls */}
+        <View style={styles.controlsRow}>
+          <TouchableOpacity style={styles.controlButton} onPress={toggleTimer}>
+            <Ionicons name="timer" size={20} color="#8844ee" />
+            <ThemedText style={styles.controlText}>{timerDuration}s</ThemedText>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, styles.cameraButton]}
-            onPress={takePhoto}>
-            <LinearGradient
-              colors={['#8844ee', '#6622cc']}
-              style={styles.gradient}>
-              <Ionicons name="camera" size={24} color="white" style={styles.buttonIcon} />
-              <ThemedText style={styles.buttonText}>Take Photo</ThemedText>
-            </LinearGradient>
+          
+          <TouchableOpacity style={styles.controlButton} onPress={toggleCamera}>
+            <Ionicons name="camera-reverse" size={20} color="#8844ee" />
+            <ThemedText style={styles.controlText}>
+              {cameraType === 'front' ? 'Selfie' : 'Back'}
+            </ThemedText>
           </TouchableOpacity>
         </View>
+
+        <ThemedText style={styles.timerExplanation}>
+          Once you tap the camera, {timerDuration === 0 ? 'the photo will be taken immediately' : `a ${timerDuration}-second timer will start before taking the photo`}
+        </ThemedText>
+
+        {/* Gallery Button */}
+        <TouchableOpacity style={styles.galleryButton} onPress={pickImage}>
+          <LinearGradient
+            colors={['#8844ee', '#6622cc']}
+            style={styles.gradient}
+          >
+            <Ionicons name="images" size={24} color="white" style={styles.buttonIcon} />
+            <ThemedText style={styles.buttonText}>Choose from Gallery</ThemedText>
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
     </ThemedView>
   );
@@ -100,69 +141,98 @@ export default function PhotoInsightsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 24,
+    backgroundColor: '#000000',
+    paddingHorizontal: 20,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginTop: 50,
-    marginBottom: 32,
+    marginTop: 60,
+    marginBottom: 24,
+    color: 'white',
   },
-  tipsContainer: {
-    gap: 12,
-    marginBottom: 32,
+  cardContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(28, 28, 28, 0.95)',
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 100,
   },
-  tipRow: {
+  tipsSection: {
     flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'space-around',
+    marginBottom: 24,
+    paddingVertical: 16,
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 12,
-    padding: 12,
   },
-  icon: {
-    marginRight: 12,
+  tipRow: {
+    alignItems: 'center',
+    gap: 6,
   },
   tipText: {
-    fontSize: 15,
-    opacity: 0.9,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    textAlign: 'center',
   },
-  uploadContainer: {
-    flex: 1,
-    gap: 24,
-  },
-  uploadArea: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(136, 68, 238, 0.1)',
+  cameraArea: {
+    height: 200,
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 16,
     borderWidth: 2,
     borderColor: '#8844ee',
     borderStyle: 'dashed',
-    borderRadius: 16,
-    marginBottom: 16,
   },
-  uploadText: {
-    marginTop: 16,
+  cameraGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  cameraText: {
     fontSize: 16,
     color: '#8844ee',
     textAlign: 'center',
-    paddingHorizontal: 24,
+    fontWeight: '600',
   },
-  buttonContainer: {
-    gap: 16,
+  controlsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 16,
   },
-  button: {
+  controlButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(136, 68, 238, 0.1)',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 20,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(136, 68, 238, 0.3)',
+  },
+  controlText: {
+    color: '#8844ee',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  timerExplanation: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.6)',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 18,
+  },
+  galleryButton: {
     height: 56,
-    borderRadius: 28,
+    borderRadius: 16,
     overflow: 'hidden',
-  },
-  cameraButton: {
-    marginTop: 8,
+    marginTop: 16,
   },
   gradient: {
-    width: '100%',
-    height: '100%',
+    flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -172,7 +242,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
   },
 }); 
