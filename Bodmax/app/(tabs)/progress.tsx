@@ -139,6 +139,8 @@ const monthNames = [
   'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
+const dayHeaders = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
 const Calendar = ({ scanDays, onDayPress }: { scanDays: ScanDay[]; onDayPress: (day: number) => void }) => {
   // Month navigation state
   const [month, setMonth] = useState(5); // 0-indexed, 5 = June
@@ -182,6 +184,16 @@ const Calendar = ({ scanDays, onDayPress }: { scanDays: ScanDay[]; onDayPress: (
           <RNText style={styles.calendarArrowText}>{'>'}</RNText>
         </TouchableOpacity>
       </View>
+      
+      {/* Day Headers */}
+      <View style={styles.dayHeadersContainer}>
+        {dayHeaders.map((day) => (
+          <View key={day} style={styles.dayHeaderCell}>
+            <RNText style={styles.dayHeaderText}>{day}</RNText>
+          </View>
+        ))}
+      </View>
+      
       <View style={styles.calendarGrid}>
         {days.map((day: number) => {
           const isScan = scanDates.includes(day);
@@ -624,14 +636,14 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     backgroundColor: 'rgba(255,255,255,0.07)',
     borderRadius: 16,
-    padding: 12,
+    padding: 16,
     alignItems: 'center',
   },
   calendarHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 16,
   },
   calendarArrow: {
     paddingHorizontal: 12,
@@ -645,33 +657,46 @@ const styles = StyleSheet.create({
   calendarTitle: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: 15,
-    marginBottom: 0,
+    fontSize: 16,
+    marginHorizontal: 20,
+  },
+  dayHeadersContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    width: '100%',
+  },
+  dayHeaderCell: {
+    width: '14%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayHeaderText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontWeight: '600',
+    fontSize: 11,
   },
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    width: 7 * 36,
-    justifyContent: 'center',
+    width: '100%',
+    justifyContent: 'space-between',
   },
   calendarDayRect: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    margin: 2,
+    width: '14%',
+    height: 36,
+    margin: 1,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: '#fff',
+    borderRadius: 18,
   },
   calendarDayRectScan: {
     backgroundColor: '#8b5cf6',
-    borderColor: '#fff',
   },
   calendarDayTextRect: {
     color: '#fff',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
   },
   calendarDayTextRectScan: {
