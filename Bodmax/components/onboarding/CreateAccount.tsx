@@ -2,15 +2,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Animated,
-  Dimensions,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Animated,
+    Dimensions,
+    Platform,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 
 const { width, height } = Dimensions.get('window');
@@ -43,6 +45,8 @@ const CreateAccount = ({ onComplete, onBack, onUpdateData, userData }: CreateAcc
   });
   const [focusedInput, setFocusedInput] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const insets = useSafeAreaInsets();
 
   // Animation values
   const emailLabelAnimation = useRef(new Animated.Value(email ? 1 : 0)).current;
@@ -101,36 +105,75 @@ const CreateAccount = ({ onComplete, onBack, onUpdateData, userData }: CreateAcc
   const passwordStrength = getPasswordStrength(password);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#000000', overflow: 'hidden' }}>
+    <View style={{ 
+      flex: 1, 
+      backgroundColor: '#000000', 
+      overflow: 'hidden',
+      paddingTop: Platform.OS === 'android' ? insets.top : 0,
+    }}>
       {/* Background Elements */}
-      <View style={{ position: 'absolute', top: -100, right: -100, width: 200, height: 200, borderRadius: 100, backgroundColor: Colors.dark.tint, opacity: 0.1 }} />
-      <View style={{ position: 'absolute', bottom: -80, left: -80, width: 160, height: 160, borderRadius: 80, backgroundColor: Colors.dark.tint, opacity: 0.08 }} />
+      <View style={{ 
+        position: 'absolute', 
+        top: -100 + (insets.top / 2), 
+        right: -100, 
+        width: Math.min(200, width * 0.5), 
+        height: Math.min(200, width * 0.5), 
+        borderRadius: Math.min(100, width * 0.25), 
+        backgroundColor: Colors.dark.tint, 
+        opacity: 0.1 
+      }} />
+      <View style={{ 
+        position: 'absolute', 
+        bottom: -80, 
+        left: -80, 
+        width: Math.min(160, width * 0.4), 
+        height: Math.min(160, width * 0.4), 
+        borderRadius: Math.min(80, width * 0.2), 
+        backgroundColor: Colors.dark.tint, 
+        opacity: 0.08 
+      }} />
 
       <ScrollView 
         contentContainerStyle={{ 
           flexGrow: 1, 
-          paddingHorizontal: 20, 
-          paddingTop: Math.max(40, height * 0.08), 
-          paddingBottom: Math.max(20, height * 0.05),
-          minHeight: height
+          paddingHorizontal: Math.max(20, width * 0.05), 
+          paddingTop: Math.max(40, height * 0.06), 
+          paddingBottom: Math.max(insets.bottom + 20, height * 0.05),
+          minHeight: height - insets.top
         }}
         showsVerticalScrollIndicator={false}
       >
         <Animated.View style={{ opacity: fadeAnimation, flex: 1, justifyContent: 'center' }}>
           {/* Header */}
-          <View style={{ alignItems: 'center', marginBottom: 24 }}>
+          <View style={{ alignItems: 'center', marginBottom: Math.max(24, height * 0.03) }}>
             <View style={{ marginBottom: 12 }}>
               <LinearGradient
                 colors={[Colors.dark.tint, '#7C3AED']}
-                style={{ width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center' }}
+                style={{ 
+                  width: Math.min(56, width * 0.14), 
+                  height: Math.min(56, width * 0.14), 
+                  borderRadius: Math.min(28, width * 0.07), 
+                  justifyContent: 'center', 
+                  alignItems: 'center' 
+                }}
               >
-                <Ionicons name="person-add" size={26} color="white" />
+                <Ionicons name="person-add" size={Math.min(26, width * 0.065)} color="white" />
               </LinearGradient>
             </View>
-            <Text style={{ fontSize: 26, fontWeight: 'bold', color: 'white', textAlign: 'center', marginBottom: 4 }}>
+            <Text style={{ 
+              fontSize: Math.min(26, width * 0.065), 
+              fontWeight: 'bold', 
+              color: 'white', 
+              textAlign: 'center', 
+              marginBottom: 4 
+            }}>
               Create Account
             </Text>
-            <Text style={{ fontSize: 15, color: '#9BA1A6', textAlign: 'center' }}>
+            <Text style={{ 
+              fontSize: Math.min(15, width * 0.0375), 
+              color: '#9BA1A6', 
+              textAlign: 'center' 
+            }}>
               Join the fitness revolution
             </Text>
           </View>
@@ -139,7 +182,7 @@ const CreateAccount = ({ onComplete, onBack, onUpdateData, userData }: CreateAcc
           <View style={{ 
             backgroundColor: 'rgba(255,255,255,0.05)', 
             borderRadius: 18, 
-            padding: 18, 
+            padding: Math.max(18, width * 0.045), 
             marginBottom: 20,
             borderWidth: 1,
             borderColor: 'rgba(255,255,255,0.1)'

@@ -1,12 +1,17 @@
 import { Image } from 'expo-image';
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Dimensions, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { RESPONSIVE_DIMENSIONS, getSpacingScale, getTypographyScale } from '@/lib/responsive';
 
+const { width, height } = Dimensions.get('window');
+const typography = getTypographyScale();
+const spacing = getSpacingScale();
 
 const getScoreColor = (score: number): string => {
   if (score >= 90) return '#4CD964'; 
@@ -72,6 +77,7 @@ const SettingsItem = ({ icon, text, onPress }: { icon?: string; text: string; on
 export default function ProfileScreen() {
   const colorScheme = useColorScheme();
   const accentColor = Colors[colorScheme ?? 'dark'].tint;
+  const insets = useSafeAreaInsets();
   
   const [userPhysique] = useState(userData.physique);
   const overallScoreColor = getScoreColor(userPhysique.overall);
@@ -85,7 +91,6 @@ export default function ProfileScreen() {
         { 
           text: "Logout", 
           onPress: () => {
-            
             Alert.alert("Logged Out", "You have been logged out successfully.");
           }
         }
@@ -102,32 +107,76 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.profileHeader}>
+    <ThemedView style={[styles.container, {
+      paddingTop: Platform.OS === 'ios' ? insets.top : insets.top + 10,
+      paddingHorizontal: RESPONSIVE_DIMENSIONS.screenPadding,
+    }]}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={[styles.scrollContent, {
+          paddingBottom: Platform.OS === 'ios' ? insets.bottom + 100 : 100,
+        }]}
+      >
+        <View style={[styles.profileHeader, {
+          marginTop: Math.max(20, height * 0.025),
+          marginBottom: spacing.lg,
+        }]}>
           <Image 
             source={{ uri: "https://example.com/profile.jpg" }}
-            style={styles.profileImage}
+            style={[styles.profileImage, {
+              width: Math.min(100, width * 0.25),
+              height: Math.min(100, width * 0.25),
+              borderRadius: Math.min(50, width * 0.125),
+            }]}
             contentFit="cover"
           />
-          <ThemedText type="title" style={styles.userName}>{userData.name}</ThemedText>
-          <ThemedText style={styles.userEmail}>{userData.email}</ThemedText>
+          <ThemedText type="title" style={[styles.userName, {
+            fontSize: typography.h2,
+            marginBottom: spacing.xs,
+          }]}>{userData.name}</ThemedText>
+          <ThemedText style={[styles.userEmail, {
+            fontSize: typography.body,
+            marginBottom: spacing.md,
+          }]}>{userData.email}</ThemedText>
           
           <View style={styles.overallScoreContainer}>
-            <View style={[styles.overallScoreCircle, { borderColor: overallScoreColor }]}>
-              <ThemedText style={[styles.overallScoreText, { color: overallScoreColor }]}>
+            <View style={[styles.overallScoreCircle, { 
+              borderColor: overallScoreColor,
+              width: Math.min(60, width * 0.15),
+              height: Math.min(60, width * 0.15),
+              borderRadius: Math.min(30, width * 0.075),
+            }]}>
+              <ThemedText style={[styles.overallScoreText, { 
+                color: overallScoreColor,
+                fontSize: typography.h3,
+              }]}>
                 {userPhysique.overall}
               </ThemedText>
             </View>
-            <ThemedText style={styles.overallScoreLabel}>Overall Rating</ThemedText>
+            <ThemedText style={[styles.overallScoreLabel, {
+              fontSize: typography.caption,
+            }]}>Overall Rating</ThemedText>
           </View>
         </View>
         
-        <View style={styles.physiqueContainer}>
-          <View style={styles.physiqueHeader}>
-            <ThemedText type="subtitle" style={styles.sectionTitle}>Physique Rating</ThemedText>
-            <View style={[styles.physiqueTypeContainer, { backgroundColor: `${overallScoreColor}20` }]}>
-              <ThemedText style={[styles.physiqueTypeText, { color: overallScoreColor }]}>{userPhysique.type}</ThemedText>
+        <View style={[styles.physiqueContainer, {
+          marginBottom: spacing.lg,
+        }]}>
+          <View style={[styles.physiqueHeader, {
+            marginBottom: spacing.md,
+          }]}>
+            <ThemedText type="subtitle" style={[styles.sectionTitle, {
+              fontSize: typography.h3,
+            }]}>Physique Rating</ThemedText>
+            <View style={[styles.physiqueTypeContainer, { 
+              backgroundColor: `${overallScoreColor}20`,
+              paddingHorizontal: spacing.sm,
+              paddingVertical: spacing.xs,
+            }]}>
+              <ThemedText style={[styles.physiqueTypeText, { 
+                color: overallScoreColor,
+                fontSize: typography.caption,
+              }]}>{userPhysique.type}</ThemedText>
             </View>
           </View>
           
@@ -139,7 +188,10 @@ export default function ProfileScreen() {
         </View>
         
         <View style={styles.settingsContainer}>
-          <ThemedText type="subtitle" style={styles.sectionTitle}>Account</ThemedText>
+          <ThemedText type="subtitle" style={[styles.sectionTitle, {
+            fontSize: typography.h3,
+            marginBottom: spacing.md,
+          }]}>Account</ThemedText>
           
           <SettingsItem 
             text="Share Profile" 
@@ -151,8 +203,13 @@ export default function ProfileScreen() {
             onPress={handleSettings}
           />
           
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <ThemedText style={styles.logoutButtonText}>Log Out</ThemedText>
+          <TouchableOpacity style={[styles.logoutButton, {
+            paddingVertical: RESPONSIVE_DIMENSIONS.buttonHeight * 0.3,
+            marginTop: spacing.lg,
+          }]} onPress={handleLogout}>
+            <ThemedText style={[styles.logoutButtonText, {
+              fontSize: typography.body,
+            }]}>Log Out</ThemedText>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -163,70 +220,56 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
   },
   scrollContent: {
-    paddingBottom: 90,
+    // Responsive padding is added dynamically
   },
   profileHeader: {
     alignItems: 'center',
-    marginTop: 60,
-    marginBottom: 24,
   },
   profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
     marginBottom: 16,
   },
   userName: {
-    fontSize: 24,
-    marginBottom: 4,
+    fontWeight: 'bold',
   },
   userEmail: {
     opacity: 0.7,
-    marginBottom: 20,
   },
   overallScoreContainer: {
     alignItems: 'center',
   },
   overallScoreCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
     borderWidth: 3,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
   },
   overallScoreText: {
-    fontSize: 20,
     fontWeight: 'bold',
   },
   overallScoreLabel: {
-    fontSize: 14,
     opacity: 0.7,
   },
   sectionTitle: {
-    marginBottom: 16,
+    // fontSize is now applied dynamically
   },
   physiqueContainer: {
-    marginBottom: 24,
+    // marginBottom is now applied dynamically
   },
   physiqueHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    // marginBottom is now applied dynamically
   },
   physiqueTypeContainer: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
     borderRadius: 16,
+    // padding is now applied dynamically
   },
   physiqueTypeText: {
     fontWeight: 'bold',
-    fontSize: 14,
+    // fontSize is now applied dynamically
   },
   ratingsContainer: {
     backgroundColor: 'rgba(255,255,255,0.1)',
@@ -257,7 +300,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   settingsContainer: {
-    marginBottom: 24,
+    // marginBottom is now applied dynamically
   },
   settingsItem: {
     flexDirection: 'row',
@@ -278,11 +321,12 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 8,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.3)',
+    // marginTop and paddingVertical are now applied dynamically
   },
   logoutButtonText: {
     fontWeight: 'bold',
+    // fontSize is now applied dynamically
   },
 }); 

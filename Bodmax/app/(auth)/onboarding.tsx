@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
-import { View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Platform, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AboutYou from '../../components/onboarding/AboutYou';
 import CreateAccount from '../../components/onboarding/CreateAccount';
 import IdealPhysique from '../../components/onboarding/IdealPhysique';
@@ -29,6 +29,8 @@ export default function Onboarding() {
     email: '',
     password: '',
   });
+
+  const insets = useSafeAreaInsets();
 
   const handleNext = (step: string) => {
     setCurrentStep(step);
@@ -88,11 +90,17 @@ export default function Onboarding() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <StatusBar style="auto" />
-      <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
-        {renderStep()}
-      </View>
-    </SafeAreaView>
+    <View style={{ 
+      flex: 1, 
+      backgroundColor: '#f5f5f5',
+      paddingTop: Platform.OS === 'android' ? insets.top : 0,
+    }}>
+      <StatusBar style="light" backgroundColor="transparent" translucent />
+      <SafeAreaView style={{ flex: 1 }} edges={Platform.OS === 'ios' ? ['left', 'right'] : ['top', 'left', 'right']}>
+        <View style={{ flex: 1 }}>
+          {renderStep()}
+        </View>
+      </SafeAreaView>
+    </View>
   );
 } 

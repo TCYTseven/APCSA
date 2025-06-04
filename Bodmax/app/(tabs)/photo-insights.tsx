@@ -3,7 +3,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Dimensions, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -13,6 +14,7 @@ const { width, height } = Dimensions.get('window');
 export default function PhotoInsightsScreen() {
   const [timerDuration, setTimerDuration] = useState(0); // 0, 5, or 10 seconds
   const [cameraType, setCameraType] = useState<'front' | 'back'>('back');
+  const insets = useSafeAreaInsets();
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -71,10 +73,15 @@ export default function PhotoInsightsScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, {
+      paddingTop: Platform.OS === 'ios' ? insets.top : insets.top + 10,
+      paddingBottom: Platform.OS === 'ios' ? insets.bottom + 20 : 20,
+    }]}>
       <ThemedText type="title" style={styles.title}>Capture Your Photo</ThemedText>
       
-      <View style={styles.cardContainer}>
+      <View style={[styles.cardContainer, {
+        marginBottom: Platform.OS === 'ios' ? insets.bottom + 80 : 80,
+      }]}>
         {/* Quick Tips */}
         <View style={styles.tipsSection}>
           <View style={styles.tipRow}>
@@ -148,7 +155,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginTop: 60,
+    marginTop: 20,
     marginBottom: 24,
     color: 'white',
   },
@@ -157,7 +164,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(28, 28, 28, 0.95)',
     borderRadius: 24,
     padding: 24,
-    marginBottom: 100,
   },
   tipsSection: {
     flexDirection: 'row',
@@ -222,14 +228,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(255,255,255,0.6)',
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
     lineHeight: 18,
   },
   galleryButton: {
     height: 56,
     borderRadius: 16,
     overflow: 'hidden',
-    marginTop: 16,
+    marginTop: 8,
   },
   gradient: {
     flex: 1,

@@ -12,7 +12,37 @@ module.exports = {
     },
   ],
   theme: {
+    screens: {
+      'xs': '360px',    // Small phones
+      'sm': '414px',    // iPhone 6/7/8 Plus, iPhone X/XS/11 Pro
+      'md': '768px',    // Tablets
+      'lg': '1024px',   // Large tablets
+      'xl': '1280px',   // Desktop
+      '2xl': '1536px',  // Large desktop
+    },
     extend: {
+      spacing: {
+        'safe-top': 'env(safe-area-inset-top)',
+        'safe-bottom': 'env(safe-area-inset-bottom)',
+        'safe-left': 'env(safe-area-inset-left)',
+        'safe-right': 'env(safe-area-inset-right)',
+      },
+      minHeight: {
+        'screen-safe': 'calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom))',
+      },
+      maxWidth: {
+        'xs': '20rem',    // 320px
+        'sm': '24rem',    // 384px
+        'md': '28rem',    // 448px
+        'lg': '32rem',    // 512px
+        'xl': '36rem',    // 576px
+        '2xl': '42rem',   // 672px
+        '3xl': '48rem',   // 768px
+        '4xl': '56rem',   // 896px
+        '5xl': '64rem',   // 1024px
+        '6xl': '72rem',   // 1152px
+        '7xl': '80rem',   // 1280px
+      },
       colors: {
         primary: {
           0: 'rgb(var(--color-primary-0)/<alpha-value>)',
@@ -180,6 +210,14 @@ module.exports = {
       },
       fontSize: {
         '2xs': '10px',
+        // Responsive font sizes
+        'xs-mobile': ['12px', { lineHeight: '16px' }],
+        'sm-mobile': ['14px', { lineHeight: '20px' }],
+        'base-mobile': ['16px', { lineHeight: '24px' }],
+        'lg-mobile': ['18px', { lineHeight: '28px' }],
+        'xl-mobile': ['20px', { lineHeight: '32px' }],
+        '2xl-mobile': ['24px', { lineHeight: '36px' }],
+        '3xl-mobile': ['30px', { lineHeight: '40px' }],
       },
       boxShadow: {
         'hard-1': '-2px 2px 8px 0px rgba(38, 38, 38, 0.20)',

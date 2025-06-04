@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import React, { useRef, useState } from 'react';
-import { Animated, Dimensions, Image, LayoutChangeEvent, Modal, Text as RNText, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Animated, Dimensions, Image, LayoutChangeEvent, Modal, Platform, Text as RNText, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Line } from 'react-native-svg';
 
 import { ThemedText } from '@/components/ThemedText';
@@ -361,6 +362,7 @@ const confettiStyles = StyleSheet.create({
 export default function ProgressScreen() {
   const colorScheme = useColorScheme();
   const accentColor = Colors[colorScheme ?? 'dark'].tint;
+  const insets = useSafeAreaInsets();
   
   // Calculate recent improvement
   const latestScore = mockData[mockData.length - 1].score;
@@ -397,8 +399,15 @@ export default function ProgressScreen() {
   }, [modalVisible, selectedScan, modalImageLayout]);
 
   return (
-    <ThemedView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+    <ThemedView style={[styles.container, {
+      paddingTop: Platform.OS === 'ios' ? insets.top : insets.top + 10,
+    }]}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={[styles.scrollContent, {
+          paddingBottom: Platform.OS === 'ios' ? insets.bottom + 120 : 120,
+        }]}
+      >
         <ThemedText type="title" style={styles.title}>Progress Tracker</ThemedText>
         
         {/* Current Stats Section (smaller) */}
@@ -504,16 +513,15 @@ export default function ProgressScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
   },
   scrollContent: {
-    paddingBottom: 90,
+    paddingHorizontal: 16,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginTop: 60,
+    marginTop: 20,
     marginBottom: 24,
   },
   statsContainerSmall: {
