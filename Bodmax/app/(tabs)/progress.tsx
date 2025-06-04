@@ -697,10 +697,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
-    borderRadius: 18,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
   },
   calendarDayRectScan: {
     backgroundColor: '#8b5cf6',
+    borderColor: 'rgba(255, 255, 255, 0.8)',
   },
   calendarDayTextRect: {
     color: '#fff',
