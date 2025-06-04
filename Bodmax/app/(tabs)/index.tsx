@@ -129,10 +129,7 @@ export default function ScanScreen() {
             </View>
           </View>
           
-          <View style={[styles.contentContainer, { 
-            paddingHorizontal: Math.max(20, width * 0.05),
-            paddingVertical: Math.max(20, height * 0.025)
-          }]}>
+          <View style={styles.contentContainer}>
             <ThemedText style={[styles.heading, { 
               fontSize: Math.min(24, width * 0.06) 
             }]}>Physique Analysis</ThemedText>
@@ -158,12 +155,6 @@ export default function ScanScreen() {
                 </ThemedText>
               </LinearGradient>
             </TouchableOpacity>
-          </View>
-          
-          <View style={styles.pagination}>
-            <View style={[styles.dot, selectedTab === 0 && styles.activeDot]} />
-            <View style={[styles.dot, selectedTab === 1 && styles.activeDot]} />
-            <View style={[styles.dot, selectedTab === 2 && styles.activeDot]} />
           </View>
         </View>
       </View>
@@ -243,6 +234,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     justifyContent: 'space-between',
+    paddingHorizontal: Math.max(20, width * 0.05),
+    paddingVertical: Math.max(20, height * 0.025),
   },
   heading: {
     fontWeight: 'bold',
@@ -269,22 +262,5 @@ const styles = StyleSheet.create({
   buttonText: {
     color: 'white',
     fontWeight: 'bold',
-  },
-  pagination: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: Math.max(20, height * 0.025),
-    gap: 8,
-    paddingBottom: Math.max(16, height * 0.02),
-  },
-  dot: {
-    width: Math.max(8, width * 0.02),
-    height: Math.max(8, width * 0.02),
-    borderRadius: Math.max(4, width * 0.01),
-    backgroundColor: '#555',
-  },
-  activeDot: {
-    backgroundColor: '#fff',
   },
 });

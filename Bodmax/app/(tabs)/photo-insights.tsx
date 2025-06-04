@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dimensions, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -14,7 +14,27 @@ const { width, height } = Dimensions.get('window');
 export default function PhotoInsightsScreen() {
   const [timerDuration, setTimerDuration] = useState(0); // 0, 5, or 10 seconds
   const [cameraType, setCameraType] = useState<'front' | 'back'>('back');
+  const [isCountingDown, setIsCountingDown] = useState(false);
+  const [countdownNumber, setCountdownNumber] = useState(0);
   const insets = useSafeAreaInsets();
+
+  // Countdown effect
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (isCountingDown && countdownNumber > 0) {
+      interval = setInterval(() => {
+        setCountdownNumber(prev => {
+          if (prev <= 1) {
+            setIsCountingDown(false);
+            launchCamera();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isCountingDown, countdownNumber]);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -38,10 +58,8 @@ export default function PhotoInsightsScreen() {
 
     // Show timer countdown if needed
     if (timerDuration > 0) {
-      // Here you would implement the timer countdown UI
-      setTimeout(() => {
-        launchCamera();
-      }, timerDuration * 1000);
+      setIsCountingDown(true);
+      setCountdownNumber(timerDuration);
     } else {
       launchCamera();
     }
@@ -61,6 +79,7 @@ export default function PhotoInsightsScreen() {
   };
 
   const toggleTimer = () => {
+    if (isCountingDown) return; // Don't allow timer changes during countdown
     setTimerDuration(prev => {
       if (prev === 0) return 5;
       if (prev === 5) return 10;
@@ -69,7 +88,13 @@ export default function PhotoInsightsScreen() {
   };
 
   const toggleCamera = () => {
+    if (isCountingDown) return; // Don't allow camera changes during countdown
     setCameraType(prev => prev === 'front' ? 'back' : 'front');
+  };
+
+  const cancelCountdown = () => {
+    setIsCountingDown(false);
+    setCountdownNumber(0);
   };
 
   return (
@@ -99,41 +124,77 @@ export default function PhotoInsightsScreen() {
         </View>
 
         {/* Camera Area */}
-        <TouchableOpacity style={styles.cameraArea} onPress={takePhoto}>
+        <TouchableOpacity 
+          style={styles.cameraArea} 
+          onPress={isCountingDown ? cancelCountdown : takePhoto}
+          disabled={isCountingDown && countdownNumber <= 1}
+        >
           <LinearGradient
-            colors={['rgba(136, 68, 238, 0.1)', 'rgba(136, 68, 238, 0.05)']}
+            colors={isCountingDown ? 
+              ['rgba(255, 69, 0, 0.2)', 'rgba(255, 69, 0, 0.1)'] : 
+              ['rgba(136, 68, 238, 0.1)', 'rgba(136, 68, 238, 0.05)']}
             style={styles.cameraGradient}
           >
-            <Ionicons name="camera" size={48} color="#8844ee" />
-            <ThemedText style={styles.cameraText}>
-              Tap to take photo{timerDuration > 0 ? ` (${timerDuration}s timer)` : ''}
-            </ThemedText>
+            {isCountingDown ? (
+              <>
+                <ThemedText style={styles.countdownNumber}>
+                  {countdownNumber}
+                </ThemedText>
+                <ThemedText style={styles.countdownText}>
+                  Tap to cancel
+                </ThemedText>
+              </>
+            ) : (
+              <>
+                <Ionicons name="camera" size={48} color="#8844ee" />
+                <ThemedText style={styles.cameraText}>
+                  Tap to take photo{timerDuration > 0 ? ` (${timerDuration}s timer)` : ''}
+                </ThemedText>
+              </>
+            )}
           </LinearGradient>
         </TouchableOpacity>
 
         {/* Camera Controls */}
         <View style={styles.controlsRow}>
-          <TouchableOpacity style={styles.controlButton} onPress={toggleTimer}>
-            <Ionicons name="timer" size={20} color="#8844ee" />
-            <ThemedText style={styles.controlText}>{timerDuration}s</ThemedText>
+          <TouchableOpacity 
+            style={[styles.controlButton, isCountingDown && styles.disabledButton]} 
+            onPress={toggleTimer}
+            disabled={isCountingDown}
+          >
+            <Ionicons name="timer" size={20} color={isCountingDown ? "#555" : "#8844ee"} />
+            <ThemedText style={[styles.controlText, isCountingDown && styles.disabledText]}>
+              {timerDuration}s
+            </ThemedText>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.controlButton} onPress={toggleCamera}>
-            <Ionicons name="camera-reverse" size={20} color="#8844ee" />
-            <ThemedText style={styles.controlText}>
+          <TouchableOpacity 
+            style={[styles.controlButton, isCountingDown && styles.disabledButton]} 
+            onPress={toggleCamera}
+            disabled={isCountingDown}
+          >
+            <Ionicons name="camera-reverse" size={20} color={isCountingDown ? "#555" : "#8844ee"} />
+            <ThemedText style={[styles.controlText, isCountingDown && styles.disabledText]}>
               {cameraType === 'front' ? 'Selfie' : 'Back'}
             </ThemedText>
           </TouchableOpacity>
         </View>
 
         <ThemedText style={styles.timerExplanation}>
-          Once you tap the camera, {timerDuration === 0 ? 'the photo will be taken immediately' : `a ${timerDuration}-second timer will start before taking the photo`}
+          {isCountingDown ? 
+            `Taking photo in ${countdownNumber} second${countdownNumber !== 1 ? 's' : ''}...` :
+            (timerDuration === 0 ? 'the photo will be taken immediately' : `a ${timerDuration}-second timer will start before taking the photo`)
+          }
         </ThemedText>
 
         {/* Gallery Button */}
-        <TouchableOpacity style={styles.galleryButton} onPress={pickImage}>
+        <TouchableOpacity 
+          style={[styles.galleryButton, isCountingDown && styles.disabledButton]} 
+          onPress={pickImage}
+          disabled={isCountingDown}
+        >
           <LinearGradient
-            colors={['#8844ee', '#6622cc']}
+            colors={isCountingDown ? ['#555', '#444'] : ['#8844ee', '#6622cc']}
             style={styles.gradient}
           >
             <Ionicons name="images" size={24} color="white" style={styles.buttonIcon} />
@@ -250,5 +311,21 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  disabledButton: {
+    backgroundColor: 'rgba(128, 128, 128, 0.3)',
+  },
+  disabledText: {
+    color: 'rgba(128, 128, 128, 0.6)',
+  },
+  countdownNumber: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  countdownText: {
+    fontSize: 16,
+    color: 'white',
+    fontWeight: '600',
   },
 }); 
