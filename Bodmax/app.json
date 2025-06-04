@@ -11,7 +11,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "Bodmax needs access to your photos to analyze your physique and provide personalized recommendations."
+        "NSPhotoLibraryUsageDescription": "Bodmax needs access to your photos to analyze your physique and provide personalized recommendations.",
+        "NSCameraUsageDescription": "Bodmax needs access to your camera to capture photos for physique analysis."
       }
     },
     "android": {
@@ -19,7 +20,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#000000"
       },
-      "permissions": ["READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"],
+      "permissions": ["READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE", "CAMERA"],
       "edgeToEdgeEnabled": true
     },
     "web": {
@@ -42,6 +43,12 @@
         "expo-image-picker",
         {
           "photosPermission": "The app accesses your photos to analyze your physique."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Bodmax needs access to your camera to capture photos for physique analysis."
         }
       ]
     ],
