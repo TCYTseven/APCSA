@@ -24,11 +24,11 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <GluestackUIProvider mode="light">
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack initialRouteName="(auth)/onboarding">
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)/onboarding" options={{ headerShown: false }} />
-            <Stack.Screen name="+not-found" />
-          </Stack>
+        <Stack initialRouteName="(auth)/onboarding">
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="(auth)/onboarding" options={{ headerShown: false }} />
+          <Stack.Screen name="+not-found" />
+        </Stack>
           <StatusBar style="light" backgroundColor="transparent" translucent />
         </ThemeProvider>
       </GluestackUIProvider>

@@ -98,9 +98,9 @@ export default function Onboarding() {
       <StatusBar style="light" backgroundColor="transparent" translucent />
       <SafeAreaView style={{ flex: 1 }} edges={Platform.OS === 'ios' ? ['left', 'right'] : ['top', 'left', 'right']}>
         <View style={{ flex: 1 }}>
-          {renderStep()}
-        </View>
-      </SafeAreaView>
+        {renderStep()}
+      </View>
+    </SafeAreaView>
     </View>
   );
 } 

@@ -1,14 +1,12 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 
 type WelcomeProps = {
   onNext: () => void;
 };
-
-const { width, height } = Dimensions.get('window');
 
 const Welcome = ({ onNext }: WelcomeProps) => {
   const insets = useSafeAreaInsets();
@@ -20,22 +18,22 @@ const Welcome = ({ onNext }: WelcomeProps) => {
       start={{ x: 0.5, y: 0 }}
       end={{ x: 0.5, y: 1 }}
     >
-      <View style={[styles.purpleAccent, { top: -80 + (insets.top / 2) }]} />
-      <View style={[styles.headerRow, { marginTop: Math.max(insets.top + 20, 48) }]}>
+      <View style={styles.purpleAccent} />
+      
+      <View style={[styles.headerRow, { marginTop: insets.top + 20 }]}>
         <Image source={require('../../assets/Bodmax Logo.png')} style={styles.logoSmall} />
         <Text style={styles.brandText}>Bodmax</Text>
       </View>
-      <View style={[styles.content, { paddingHorizontal: Math.max(32, width * 0.08) }]}>
-        <Text style={[styles.splashText, { fontSize: Math.min(24, width * 0.06) }]}>
+      
+      <View style={styles.content}>
+        <Text style={styles.splashText}>
           <Text style={styles.splashTextFaint}>Get ready to{"\n"}</Text>
           <Text style={styles.splashTextBright}>gamify your progress tracking{"\n"}</Text>
           <Text style={styles.splashTextFaint}>and transform how you conquer your fitness goals.</Text>
         </Text>
       </View>
-      <View style={[styles.buttonContainer, { 
-        marginBottom: Math.max(insets.bottom + 40, 60),
-        paddingHorizontal: width * 0.1
-      }]}>
+      
+      <View style={[styles.buttonContainer, { marginBottom: insets.bottom + 40 }]}>
         <TouchableOpacity
           style={styles.getStartedButton}
           onPress={onNext}
@@ -56,6 +54,7 @@ const styles = StyleSheet.create({
   purpleAccent: {
     position: 'absolute',
     left: -60,
+    top: -80,
     width: 300,
     height: 300,
     borderRadius: 150,
@@ -69,14 +68,14 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   logoSmall: {
-    width: Math.min(32, width * 0.08),
-    height: Math.min(32, width * 0.08),
+    width: 32,
+    height: 32,
     marginRight: 10,
     resizeMode: 'contain',
   },
   brandText: {
     color: 'white',
-    fontSize: Math.min(22, width * 0.055),
+    fontSize: 22,
     fontWeight: '700',
     letterSpacing: 1,
   },
@@ -84,11 +83,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'flex-start',
+    paddingHorizontal: 32,
     paddingTop: 40,
     zIndex: 2,
   },
   splashText: {
-    lineHeight: Math.min(32, width * 0.08),
+    fontSize: 24,
+    lineHeight: 32,
     textAlign: 'left',
     marginBottom: 24,
   },
@@ -103,6 +104,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     width: '100%',
     alignItems: 'center',
+    paddingHorizontal: 32,
     zIndex: 2,
   },
   getStartedButton: {
