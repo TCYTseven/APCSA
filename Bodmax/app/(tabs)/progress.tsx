@@ -1,5 +1,6 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Animated, Dimensions, Image, LayoutChangeEvent, Modal, Platform, Text as RNText, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Line } from 'react-native-svg';
@@ -8,6 +9,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { dataStore, type MuscleGroupScore, type PhysiqueRecord } from '@/lib/dataStore';
 
 // Helper function to get color based on score
 const getScoreColor = (score: number): string => {
@@ -364,11 +366,17 @@ export default function ProgressScreen() {
   const accentColor = Colors[colorScheme ?? 'dark'].tint;
   const insets = useSafeAreaInsets();
   
+  // State for real data
+  const [progressData, setProgressData] = useState<Array<{ date: string; score: number }>>([]);
+  const [currentScores, setCurrentScores] = useState<MuscleGroupScore>({});
+  const [physiqueRecords, setPhysiqueRecords] = useState<PhysiqueRecord[]>([]);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  
   // Calculate recent improvement
-  const latestScore = mockData[mockData.length - 1].score;
-  const previousScore = mockData[mockData.length - 2].score;
+  const latestScore = progressData.length > 0 ? progressData[progressData.length - 1].score : 0;
+  const previousScore = progressData.length > 1 ? progressData[progressData.length - 2].score : 0;
   const improvement = latestScore - previousScore;
-  const streakCount = 12; // Mock data
+  const streakCount = physiqueRecords.length; // Number of scans taken
   
   const latestScoreColor = getScoreColor(latestScore);
 
@@ -377,15 +385,48 @@ export default function ProgressScreen() {
   const explosionRef = useRef<any>(null);
   const [modalImageLayout, setModalImageLayout] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
 
+  // Load data when screen is focused
+  const loadData = useCallback(async () => {
+    try {
+      const profile = await dataStore.getUserProfile();
+      setUserProfile(profile);
+      
+      if (profile) {
+        const records = await dataStore.getPhysiqueRecords(profile.id);
+        setPhysiqueRecords(records);
+        
+        const progress = await dataStore.getProgressData(profile.id);
+        setProgressData(progress);
+      }
+      
+      const scores = await dataStore.getCurrentScores();
+      setCurrentScores(scores);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
+
   // Find previous scan for score change
   function handleDayPress(day: number) {
-    const scan = scanData.find((d: ScanDay) => parseInt(d.date.split('-')[2]) === day);
+    const scanDays = physiqueRecords.map(record => ({
+      date: record.createdAt.split('T')[0],
+      image: record.imageUri,
+      score: Math.round(Object.values(record.scores).reduce((sum, score) => sum + score, 0) / Object.values(record.scores).length)
+    }));
+    
+    const scan = scanDays.find((d: ScanDay) => parseInt(d.date.split('-')[2]) === day);
     if (!scan) return;
-    const idx = scanData.findIndex((d: ScanDay) => d.date === scan.date);
-    const prev = idx > 0 ? scanData[idx - 1] : null;
+    const idx = scanDays.findIndex((d: ScanDay) => d.date === scan.date);
+    const prev = idx > 0 ? scanDays[idx - 1] : null;
     setSelectedScan({
       ...scan,
-      change: prev ? getScoreChange(scan.score, prev.score) : { text: '', color: '#aaa' },
+      change: prev ? getScoreChange(scan.score, prev.score) : { text: 'First scan recorded!', color: '#4CD964' },
       prevDate: prev ? prev.date : null,
     });
     setModalVisible(true);
@@ -434,23 +475,31 @@ export default function ProgressScreen() {
         </View>
 
         {/* Calendar UI */}
-        <Calendar scanDays={scanData} onDayPress={handleDayPress} />
+        <Calendar scanDays={physiqueRecords.map(record => ({
+          date: record.createdAt.split('T')[0],
+          image: record.imageUri,
+          score: Math.round(Object.values(record.scores).reduce((sum, score) => sum + score, 0) / Object.values(record.scores).length)
+        }))} onDayPress={handleDayPress} />
 
         {/* Progress Chart Section - Line chart */}
         <View style={styles.chartContainer}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>Progress Chart</ThemedText>
-          <LineChart data={mockData} />
+          {progressData.length > 0 ? (
+            <LineChart data={progressData} />
+          ) : (
+            <View style={styles.noDataContainer}>
+              <ThemedText style={styles.noDataText}>📊 No scan data yet</ThemedText>
+              <ThemedText style={styles.noDataSubtext}>Take your first physique photo to see progress!</ThemedText>
+            </View>
+          )}
         </View>
 
         {/* Body Areas Section */}
         <View style={styles.bodyAreasContainer}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>Body Areas</ThemedText>
-          <ProgressBar title="Chest" value={85} />
-          <ProgressBar title="Legs" value={72} />
-          <ProgressBar title="Shoulders" value={87} />
-          <ProgressBar title="Biceps" value={89} />
-          <ProgressBar title="Triceps" value={83} />
-          <ProgressBar title="Back" value={78} />
+          {Object.entries(currentScores).map(([muscleGroup, score]) => (
+            <ProgressBar key={muscleGroup} title={muscleGroup} value={score} />
+          ))}
         </View>
 
         {/* Compare Button */}
@@ -758,5 +807,23 @@ const styles = StyleSheet.create({
   modalCloseText: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  noDataContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 180,
+  },
+  noDataText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 8,
+    opacity: 0.7,
+  },
+  noDataSubtext: {
+    fontSize: 14,
+    textAlign: 'center',
+    opacity: 0.5,
   },
 }); 

@@ -1,7 +1,8 @@
+import { dataStore } from '@/lib/dataStore';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
-import { Platform, View } from 'react-native';
+import { Alert, Platform, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AboutYou from '../../components/onboarding/AboutYou';
 import CreateAccount from '../../components/onboarding/CreateAccount';
@@ -47,10 +48,36 @@ export default function Onboarding() {
     setUserData({ ...userData, ...data });
   };
 
-  const handleComplete = () => {
-    // In a real app, this would submit data to the backend
-    console.log('User data collected:', userData);
-    router.push('/(tabs)');
+  const parseHeight = (heightString: string): number => {
+    // Convert height from "5'10"" format to inches
+    const parts = heightString.split("'");
+    if (parts.length === 2) {
+      const feet = parseInt(parts[0]) || 0;
+      const inches = parseInt(parts[1].replace('"', '')) || 0;
+      return feet * 12 + inches;
+    }
+    return parseInt(heightString) || 68; // Default to 68 inches if parsing fails
+  };
+
+  const handleComplete = async () => {
+    try {
+      // Convert and save user profile to data store
+      const userProfile = {
+        email: userData.email,
+        gender: userData.gender as 'male' | 'female',
+        height: parseHeight(userData.height),
+        weight: parseInt(userData.weight) || 150,
+        desiredPhysique: userData.idealPhysique,
+      };
+
+      await dataStore.saveUserProfile(userProfile);
+      
+      console.log('User profile saved:', userProfile);
+      router.push('/(tabs)');
+    } catch (error) {
+      console.error('Error saving user profile:', error);
+      Alert.alert('Error', 'Failed to save your profile. Please try again.');
+    }
   };
 
   const renderStep = () => {
