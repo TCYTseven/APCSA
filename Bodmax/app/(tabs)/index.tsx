@@ -3,18 +3,13 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
-import { Animated, Dimensions, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Animated, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { useColorScheme } from '@/hooks/useColorScheme';
-
-const { width, height } = Dimensions.get('window');
 
 export default function ScanScreen() {
-  const colorScheme = useColorScheme();
-  const [selectedTab, setSelectedTab] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const insets = useSafeAreaInsets();
   
@@ -67,25 +62,18 @@ export default function ScanScreen() {
   // Calculate the scanning line position
   const scanLineTranslateY = scanAnimValue.interpolate({
     inputRange: [0, 1],
-    outputRange: [-20, height * 0.4], // Move from top to bottom of image container
+    outputRange: [-20, 240], // Fixed height for mobile
   });
 
   return (
     <ThemedView style={[styles.container, { 
-      paddingTop: Platform.OS === 'ios' ? insets.top : insets.top + 10,
-      paddingBottom: Platform.OS === 'ios' ? insets.bottom + 90 : 90,
-      paddingHorizontal: Math.max(24, width * 0.06)
+      paddingTop: insets.top + 20,
+      paddingBottom: insets.bottom + 90,
     }]}>
-      <ThemedText type="title" style={[styles.title, { 
-        fontSize: Math.min(28, width * 0.07),
-        marginTop: Platform.OS === 'android' ? 20 : 0
-      }]}>BodMax</ThemedText>
+      <ThemedText type="title" style={styles.title}>BodMax</ThemedText>
       
       <View style={styles.cardContainer}>
-        <View style={[styles.card, {
-          height: Math.min(height * 0.65, 600),
-          maxHeight: height - insets.top - insets.bottom - 200
-        }]}>
+        <View style={styles.card}>
           <View style={styles.imageContainer}>
             {/* Silhouette Image */}
             <Image
@@ -130,27 +118,23 @@ export default function ScanScreen() {
           </View>
           
           <View style={styles.contentContainer}>
-            <ThemedText style={[styles.heading, { 
-              fontSize: Math.min(24, width * 0.06) 
-            }]}>Physique Analysis</ThemedText>
-            <ThemedText style={[styles.subheading, { 
-              fontSize: Math.min(16, width * 0.04) 
-            }]}>
-              Get your ratings and recommendations
-            </ThemedText>
+            <View style={styles.textContainer}>
+              <ThemedText style={styles.heading}>Physique Analysis</ThemedText>
+              <ThemedText style={styles.subheading}>
+                Get your ratings and recommendations
+              </ThemedText>
+            </View>
             
             <TouchableOpacity
-              style={[styles.scanButton, {
-                marginTop: Math.max(20, height * 0.025)
-              }]}
+              style={styles.scanButton}
               onPress={handleBeginScan}
-              disabled={isLoading}>
+              disabled={isLoading}
+            >
               <LinearGradient
                 colors={['#8844ee', '#6622cc']}
-                style={styles.gradient}>
-                <ThemedText style={[styles.buttonText, { 
-                  fontSize: 16
-                }]}>
+                style={styles.gradient}
+              >
+                <ThemedText style={styles.buttonText}>
                   {isLoading ? "Processing..." : "Get Started"}
                 </ThemedText>
               </LinearGradient>
@@ -166,11 +150,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#121212',
+    paddingHorizontal: 24,
   },
   title: {
+    fontSize: 28,
     fontWeight: 'bold',
     textAlign: 'left',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   cardContainer: {
     flex: 1,
@@ -179,12 +165,13 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '100%',
+    height: 500,
     borderRadius: 24,
     overflow: 'hidden',
     backgroundColor: '#1c1c1c',
   },
   imageContainer: {
-    height: '60%',
+    height: 300,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#1c1c1c',
@@ -192,8 +179,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   bodyImage: {
-    width: '100%',
-    height: '100%',
+    width: '80%',
+    height: '90%',
   },
   scanningOverlay: {
     position: 'absolute',
@@ -231,27 +218,31 @@ const styles = StyleSheet.create({
     top: `${12.5 * (Math.floor(Math.random() * 8) + 1)}%`,
   },
   contentContainer: {
-    alignItems: 'center',
     flex: 1,
     justifyContent: 'space-between',
-    paddingHorizontal: Math.max(20, width * 0.05),
-    paddingVertical: Math.max(20, height * 0.025),
+    paddingHorizontal: 32,
+    paddingVertical: 32,
+  },
+  textContainer: {
+    alignItems: 'center',
   },
   heading: {
+    fontSize: 26,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 12,
     textAlign: 'center',
   },
   subheading: {
+    fontSize: 16,
     color: '#aaa',
     textAlign: 'center',
+    lineHeight: 22,
   },
   scanButton: {
     width: '100%',
     height: 56,
     borderRadius: 28,
     overflow: 'hidden',
-    marginBottom: 16,
   },
   gradient: {
     width: '100%',
@@ -261,6 +252,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: 'white',
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });
