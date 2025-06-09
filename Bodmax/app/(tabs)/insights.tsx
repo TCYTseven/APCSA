@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import MuscleBodyGraph from '@/components/MuscleBodyGraph';
@@ -8,27 +9,69 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { dataStore, type MuscleGroupScore } from '@/lib/dataStore';
 
 const { width } = Dimensions.get('window');
 
-// Mock user muscle group scores (0-100)
-const muscleGroupScores = {
-  chest: 85,
-  deltoids: 78, // shoulders -> deltoids (proper muscle name)
-  biceps: 89,
-  triceps: 83,
-  forearm: 75,
-  abs: 68,
-  'upper-back': 72,
-  obliques: 74,
-  quadriceps: 65,
-  hamstring: 58,
-  calves: 92,
-  gluteal: 61,
+// Function to calculate overall score using mathematical formula
+const calculateOverallScore = (scores: MuscleGroupScore): number => {
+  const validScores = Object.values(scores).filter(score => score > 0);
+  if (validScores.length === 0) return 0;
+  
+  // Use weighted average with emphasis on major muscle groups
+  const weights = {
+    'Trapezius': 1.0,
+    'Triceps': 1.0,
+    'Forearm': 0.7,
+    'Calves': 0.8,
+    'Deltoids': 1.1,
+    'Chest': 1.2,
+    'Biceps': 1.0,
+    'Abs': 1.3,
+    'Quadriceps': 1.2,
+    'Upper back': 1.1,
+    'Lower back': 1.0,
+    'Hamstring': 1.0,
+    'Gluteal': 1.0,
+  };
+
+  let totalWeightedScore = 0;
+  let totalWeight = 0;
+
+  Object.entries(scores).forEach(([muscle, score]) => {
+    if (score > 0) {
+      const weight = weights[muscle as keyof typeof weights] || 1.0;
+      totalWeightedScore += score * weight;
+      totalWeight += weight;
+    }
+  });
+
+  return totalWeight > 0 ? Math.round(totalWeightedScore / totalWeight) : 0;
+};
+
+// Convert muscle group names to body highlighter format
+const convertMuscleNameToSlug = (muscleName: string): string => {
+  const mapping: { [key: string]: string } = {
+    'Trapezius': 'trapezius',
+    'Triceps': 'triceps',
+    'Forearm': 'forearm',
+    'Calves': 'calves',
+    'Deltoids': 'deltoids',
+    'Chest': 'chest',
+    'Biceps': 'biceps',
+    'Abs': 'abs',
+    'Quadriceps': 'quadriceps',
+    'Upper back': 'upper-back',
+    'Lower back': 'lower-back',
+    'Hamstring': 'hamstring',
+    'Gluteal': 'gluteal',
+  };
+  return mapping[muscleName] || muscleName.toLowerCase();
 };
 
 // Function to get color based on score
 const getScoreColor = (score: number): string => {
+  if (score === 0) return '#666666'; // Gray for no data
   if (score >= 80) return '#4CD964'; // Green for strengths
   if (score >= 70) return '#FFD60A'; // Yellow for average
   return '#FF3B30'; // Red for areas to improve
@@ -36,18 +79,23 @@ const getScoreColor = (score: number): string => {
 
 // Function to get intensity based on score (1-3 scale for the body highlighter)
 const getIntensity = (score: number): number => {
+  if (score === 0) return 0; // No highlighting for no data
   if (score >= 80) return 3; // Highest intensity (green)
   if (score >= 70) return 2; // Medium intensity (yellow)
   return 1; // Lowest intensity (red)
 };
 
 // Convert muscle scores to body highlighter format
-const convertToBodyHighlighter = (scores: typeof muscleGroupScores) => {
-  return Object.entries(scores).map(([muscle, score]) => ({
-    slug: muscle as any, // Cast to avoid TypeScript issues with specific slug types
-    intensity: getIntensity(score),
-  }));
+const convertToBodyHighlighter = (scores: MuscleGroupScore) => {
+  return Object.entries(scores)
+    .filter(([_, score]) => score > 0) // Only highlight muscles with actual scores
+    .map(([muscle, score]) => ({
+      slug: convertMuscleNameToSlug(muscle) as any,
+      intensity: getIntensity(score),
+    }));
 };
+
+// This mock data is no longer used - actual data is loaded from dataStore
 
 // Quick Insight Card Component
 const InsightCard = ({ icon, title, description, color }: { icon: string; title: string; description: string; color: string }) => (
@@ -81,20 +129,44 @@ const ScoreLegend = () => (
 );
 
 // Muscle Group Grid Component
-const MuscleGroupGrid = ({ scores }: { scores: typeof muscleGroupScores }) => (
-  <View style={styles.muscleGridContainer}>
-    {Object.entries(scores).map(([muscle, score]) => (
-      <View key={muscle} style={styles.muscleGridItem}>
-        <View style={[styles.muscleScoreCircle, { backgroundColor: getScoreColor(score) }]}>
-          <ThemedText style={styles.muscleScoreNumber}>{score}</ThemedText>
-        </View>
-        <ThemedText style={styles.muscleName}>
-          {muscle.charAt(0).toUpperCase() + muscle.slice(1).replace('-', ' ')}
-        </ThemedText>
-      </View>
-    ))}
-  </View>
-);
+const MuscleGroupGrid = ({ scores }: { scores: MuscleGroupScore }) => {
+  // Define the complete list of muscle groups in the order specified
+  const allMuscleGroups = [
+    'Trapezius',
+    'Triceps', 
+    'Forearm',
+    'Calves',
+    'Deltoids',
+    'Chest',
+    'Biceps',
+    'Abs',
+    'Quadriceps',
+    'Upper back',
+    'Lower back',
+    'Hamstring',
+    'Gluteal'
+  ];
+
+  return (
+    <View style={styles.muscleGridContainer}>
+      {allMuscleGroups.map((muscle) => {
+        const score = scores[muscle] || 0;
+        return (
+          <View key={muscle} style={styles.muscleGridItem}>
+            <View style={[styles.muscleScoreCircle, { backgroundColor: getScoreColor(score) }]}>
+              <ThemedText style={styles.muscleScoreNumber}>
+                {score === 0 ? 'N/A' : score}
+              </ThemedText>
+            </View>
+            <ThemedText style={styles.muscleName}>
+              {muscle.charAt(0).toUpperCase() + muscle.slice(1).replace('-', ' ')}
+            </ThemedText>
+          </View>
+        );
+      })}
+    </View>
+  );
+};
 
 export default function InsightsScreen() {
   const colorScheme = useColorScheme();
@@ -105,11 +177,41 @@ export default function InsightsScreen() {
     gender: 'male'
   });
 
-  // Calculate overall insights
-  const scores = Object.values(muscleGroupScores);
-  const averageScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-  const strengths = Object.entries(muscleGroupScores).filter(([_, score]) => score >= 80);
-  const focusAreas = Object.entries(muscleGroupScores).filter(([_, score]) => score < 70);
+  // State for real data
+  const [currentScores, setCurrentScores] = useState<MuscleGroupScore>({});
+  const [latestAdvice, setLatestAdvice] = useState<string>('');
+
+  // Load data when screen is focused
+  const loadData = useCallback(async () => {
+    try {
+      const scores = await dataStore.getCurrentScores();
+      setCurrentScores(scores);
+      console.log('📊 Loaded current scores in insights:', scores);
+
+      // Get the latest physique record for advice
+      const userProfile = await dataStore.getUserProfile();
+      if (userProfile) {
+        const latestRecord = await dataStore.getLatestPhysiqueRecord(userProfile.id);
+        if (latestRecord) {
+          setLatestAdvice(latestRecord.advice);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading insights data:', error);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
+
+  // Calculate overall insights using mathematical formula
+  const overallScore = calculateOverallScore(currentScores);
+  const scores = Object.values(currentScores).filter(score => score > 0);
+  const strengths = Object.entries(currentScores).filter(([_, score]) => score >= 80);
+  const focusAreas = Object.entries(currentScores).filter(([_, score]) => score > 0 && score < 70);
 
   const handleBodyPartPress = (slug: string, side?: 'left' | 'right') => {
     setSelectedMuscle(slug);
@@ -135,7 +237,7 @@ export default function InsightsScreen() {
             colors={[accentColor, '#8b5cf6']}
             style={styles.scoreCircle}
           >
-            <ThemedText style={styles.scoreText}>{averageScore}</ThemedText>
+            <ThemedText style={styles.scoreText}>{overallScore}</ThemedText>
             <ThemedText style={styles.scoreLabel}>Overall</ThemedText>
           </LinearGradient>
         </View>
@@ -158,7 +260,7 @@ export default function InsightsScreen() {
           </View>
 
           <MuscleBodyGraph
-            highlightedMuscles={convertToBodyHighlighter(muscleGroupScores)}
+            highlightedMuscles={convertToBodyHighlighter(currentScores)}
             gender={bodyView.gender}
             side={bodyView.side}
             onBodyPartPress={handleBodyPartPress}
@@ -177,15 +279,16 @@ export default function InsightsScreen() {
               <ThemedText style={styles.muscleTitle}>
                 {selectedMuscle.charAt(0).toUpperCase() + selectedMuscle.slice(1).replace('-', ' ')}
               </ThemedText>
-              <View style={[styles.muscleScore, { backgroundColor: getScoreColor(muscleGroupScores[selectedMuscle as keyof typeof muscleGroupScores] || 0) }]}>
+              <View style={[styles.muscleScore, { backgroundColor: getScoreColor(currentScores[selectedMuscle] || 0) }]}>
                 <ThemedText style={styles.muscleScoreText}>
-                  {muscleGroupScores[selectedMuscle as keyof typeof muscleGroupScores] || 0}
+                  {currentScores[selectedMuscle] || 0}
                 </ThemedText>
               </View>
             </View>
             <ThemedText style={styles.muscleAdvice}>
               {(() => {
-                const score = muscleGroupScores[selectedMuscle as keyof typeof muscleGroupScores] || 0;
+                const score = currentScores[selectedMuscle] || 0;
+                if (score === 0) return "No data yet. Take a photo to get your first score!";
                 if (score >= 80) return "Excellent development! Maintain with current routine.";
                 if (score >= 70) return "Good progress. Consider increasing volume slightly.";
                 return "Focus area. Increase training frequency and volume.";
@@ -197,7 +300,7 @@ export default function InsightsScreen() {
         {/* Muscle Group Scores */}
         <View style={styles.muscleScoresSection}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>Muscle Group Scores</ThemedText>
-          <MuscleGroupGrid scores={muscleGroupScores} />
+          <MuscleGroupGrid scores={currentScores} />
         </View>
 
         {/* Quick Insights */}
@@ -377,7 +480,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   muscleGridItem: {
-    width: '48%',
+    width: '31%',
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 12,
@@ -395,7 +498,7 @@ const styles = StyleSheet.create({
   muscleScoreNumber: {
     color: 'white',
     fontWeight: 'bold',
-    fontSize: 14,
+    fontSize: 12,
   },
   muscleName: {
     color: 'white',
