@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
-import { Animated, Dimensions, Image, LayoutChangeEvent, Modal, Platform, Text as RNText, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, Dimensions, Image, LayoutChangeEvent, Modal, Platform, Text as RNText, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Line } from 'react-native-svg';
 
@@ -33,15 +33,10 @@ const mockData = [
   { date: 'May 8', score: 85 },
 ];
 
-// Mock scan data for calendar
-type ScanDay = { date: string; image: string; score: number };
+// Types for calendar and modal functionality
+type ScanDay = { date: string; image: string; score: number; recordId: string };
 type ScanWithChange = ScanDay & { change: { text: string; color: string }; prevDate: string | null };
-const scanData: ScanDay[] = [
-  { date: '2024-06-01', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTAGkZ6b3g6Qk_OTDYakHzBPaxE3x6YbD4xlA&s', score: 72 },
-  { date: '2024-06-03', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTAGkZ6b3g6Qk_OTDYakHzBPaxE3x6YbD4xlA&s', score: 74 },
-  { date: '2024-06-07', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTAGkZ6b3g6Qk_OTDYakHzBPaxE3x6YbD4xlA&s', score: 78 },
-  { date: '2024-06-10', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTAGkZ6b3g6Qk_OTDYakHzBPaxE3x6YbD4xlA&s', score: 80 },
-];
+type DayScans = { date: string; scans: ScanWithChange[]; currentIndex: number };
 
 function getScoreChange(currentScore: number, previousScore: number): { text: string; color: string } {
   const diff = currentScore - previousScore;
@@ -145,13 +140,33 @@ const monthNames = [
 const dayHeaders = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
 const Calendar = ({ scanDays, onDayPress }: { scanDays: ScanDay[]; onDayPress: (day: number) => void }) => {
-  // Month navigation state
-  const [month, setMonth] = useState(5); // 0-indexed, 5 = June
-  const [year, setYear] = useState(2024);
+  // Month navigation state - default to current month/year
+  const currentDate = new Date();
+  const [month, setMonth] = useState(currentDate.getMonth()); // 0-indexed
+  const [year, setYear] = useState(currentDate.getFullYear());
+  
+  // Navigate to month with most recent scan when scanDays change
+  React.useEffect(() => {
+    if (scanDays.length > 0) {
+      // Get the most recent scan date
+      const mostRecentScan = scanDays.reduce((latest, current) => {
+        return new Date(current.date) > new Date(latest.date) ? current : latest;
+      });
+      
+      const scanDate = new Date(mostRecentScan.date);
+      const scanMonth = scanDate.getMonth();
+      const scanYear = scanDate.getFullYear();
+      
+      setMonth(scanMonth);
+      setYear(scanYear);
+    }
+  }, [scanDays.length]); // Only trigger when the number of scans changes
 
-  // For demo, only June 2024 has data
-  const daysInMonth = 30;
+  // Get the number of days in the current month
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  
+  // Filter scan days for current month/year and extract day numbers
   const scanDates = scanDays
     .filter((d: ScanDay) => {
       const [y, m] = d.date.split('-');
@@ -167,6 +182,7 @@ const Calendar = ({ scanDays, onDayPress }: { scanDays: ScanDay[]; onDayPress: (
       setMonth(month - 1);
     }
   };
+  
   const handleNextMonth = () => {
     if (month === 11) {
       setMonth(0);
@@ -197,6 +213,7 @@ const Calendar = ({ scanDays, onDayPress }: { scanDays: ScanDay[]; onDayPress: (
         ))}
       </View>
       
+      {/* Calendar Grid */}
       <View style={styles.calendarGrid}>
         {days.map((day: number) => {
           const isScan = scanDates.includes(day);
@@ -212,6 +229,8 @@ const Calendar = ({ scanDays, onDayPress }: { scanDays: ScanDay[]; onDayPress: (
           );
         })}
       </View>
+      
+
     </View>
   );
 };
@@ -381,63 +400,92 @@ export default function ProgressScreen() {
   const latestScoreColor = getScoreColor(latestScore);
 
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedScan, setSelectedScan] = useState<ScanWithChange | null>(null);
+  const [selectedDayScans, setSelectedDayScans] = useState<DayScans | null>(null);
   const explosionRef = useRef<any>(null);
   const [modalImageLayout, setModalImageLayout] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
 
   // Load data when screen is focused
   const loadData = useCallback(async () => {
     try {
+      console.log('📊 Loading progress data...');
       const profile = await dataStore.getUserProfile();
       setUserProfile(profile);
+      console.log('👤 User profile loaded:', profile?.email);
       
       if (profile) {
         const records = await dataStore.getPhysiqueRecords(profile.id);
+        console.log('📸 Physique records loaded:', records.length, 'records');
+        records.forEach((record, index) => {
+          console.log(`📸 Record ${index + 1}:`, record.createdAt.split('T')[0], 'Muscle groups:', Object.keys(record.scores).length);
+        });
         setPhysiqueRecords(records);
         
         const progress = await dataStore.getProgressData(profile.id);
+        console.log('📈 Progress data loaded:', progress.length, 'data points');
         setProgressData(progress);
       }
       
       const scores = await dataStore.getCurrentScores();
+      console.log('🎯 Current scores loaded:', Object.keys(scores).length, 'muscle groups');
       setCurrentScores(scores);
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('❌ Error loading data:', error);
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
+      console.log('📊 Progress screen focused, loading data...');
       loadData();
     }, [loadData])
   );
 
-  // Find previous scan for score change
+  // Handle day press with support for multiple images per day
   function handleDayPress(day: number) {
     const scanDays = physiqueRecords.map(record => ({
       date: record.createdAt.split('T')[0],
       image: record.imageUri,
-      score: Math.round(Object.values(record.scores).reduce((sum, score) => sum + score, 0) / Object.values(record.scores).length)
+      score: Math.round(Object.values(record.scores).reduce((sum, score) => sum + score, 0) / Object.values(record.scores).length),
+      recordId: record.id
     }));
     
-    const scan = scanDays.find((d: ScanDay) => parseInt(d.date.split('-')[2]) === day);
-    if (!scan) return;
-    const idx = scanDays.findIndex((d: ScanDay) => d.date === scan.date);
-    const prev = idx > 0 ? scanDays[idx - 1] : null;
-    setSelectedScan({
+    // Get all scans for the selected day
+    const dayScans = scanDays.filter((d: ScanDay) => parseInt(d.date.split('-')[2]) === day);
+    if (dayScans.length === 0) return;
+    
+    // Sort by creation time (most recent first)
+    dayScans.sort((a, b) => {
+      const recordA = physiqueRecords.find(r => r.id === a.recordId);
+      const recordB = physiqueRecords.find(r => r.id === b.recordId);
+      return new Date(recordB!.createdAt).getTime() - new Date(recordA!.createdAt).getTime();
+    });
+    
+    // Find previous scan for comparison
+    const allScansChronological = scanDays.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const currentDayIndex = allScansChronological.findIndex(d => d.date === dayScans[0].date);
+    const prevScan = currentDayIndex > 0 ? allScansChronological[currentDayIndex - 1] : null;
+    
+    // Create scans with change information
+    const scansWithChange: ScanWithChange[] = dayScans.map(scan => ({
       ...scan,
-      change: prev ? getScoreChange(scan.score, prev.score) : { text: 'First scan recorded!', color: '#4CD964' },
-      prevDate: prev ? prev.date : null,
+      change: prevScan ? getScoreChange(scan.score, prevScan.score) : { text: 'First scan recorded!', color: '#4CD964' },
+      prevDate: prevScan ? prevScan.date : null,
+    }));
+    
+    setSelectedDayScans({
+      date: dayScans[0].date,
+      scans: scansWithChange,
+      currentIndex: 0
     });
     setModalVisible(true);
   }
 
   // Trigger confetti when modal opens and score improved
   React.useEffect(() => {
-    if (modalVisible && selectedScan && selectedScan.change.text.includes('improved') && explosionRef.current && modalImageLayout) {
+    if (modalVisible && selectedDayScans && selectedDayScans.scans[selectedDayScans.currentIndex]?.change.text.includes('improved') && explosionRef.current && modalImageLayout) {
       explosionRef.current.start();
     }
-  }, [modalVisible, selectedScan, modalImageLayout]);
+  }, [modalVisible, selectedDayScans, modalImageLayout]);
 
   return (
     <ThemedView style={[styles.container, {
@@ -478,7 +526,8 @@ export default function ProgressScreen() {
         <Calendar scanDays={physiqueRecords.map(record => ({
           date: record.createdAt.split('T')[0],
           image: record.imageUri,
-          score: Math.round(Object.values(record.scores).reduce((sum, score) => sum + score, 0) / Object.values(record.scores).length)
+          score: Math.round(Object.values(record.scores).reduce((sum, score) => sum + score, 0) / Object.values(record.scores).length),
+          recordId: record.id
         }))} onDayPress={handleDayPress} />
 
         {/* Progress Chart Section - Line chart */}
@@ -519,7 +568,7 @@ export default function ProgressScreen() {
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               {/* Confetti explosion overlay (only if improved) */}
-              {selectedScan && selectedScan.change.text.includes('improved') && modalImageLayout && (
+              {selectedDayScans && selectedDayScans.scans[selectedDayScans.currentIndex]?.change.text.includes('improved') && modalImageLayout && (
                 <Explosion
                   ref={explosionRef}
                   count={120}
@@ -532,20 +581,111 @@ export default function ProgressScreen() {
                   fadeOut={true}
                 />
               )}
-              {selectedScan && (
+              {selectedDayScans && (
                 <>
-                  <RNText style={styles.modalDate}>Scan: {selectedScan.date}</RNText>
-                  <Image
-                    source={{ uri: selectedScan.image }}
-                    style={styles.modalImage}
-                    onLayout={(e: LayoutChangeEvent) => {
-                      const { x, y, width, height } = e.nativeEvent.layout;
-                      setModalImageLayout({ x, y, width, height });
-                    }}
-                  />
-                  <View style={[styles.modalTag, { backgroundColor: selectedScan.change.color + '22' }]}> 
-                    <RNText style={[styles.modalTagText, { color: selectedScan.change.color }]}>{selectedScan.change.text}</RNText>
+                  <View style={styles.modalHeader}>
+                    <RNText style={styles.modalDate}>
+                      Scan: {selectedDayScans.date}
+                      {selectedDayScans.scans.length > 1 && (
+                        <RNText style={styles.modalCounter}> ({selectedDayScans.currentIndex + 1}/{selectedDayScans.scans.length})</RNText>
+                      )}
+                    </RNText>
+                    <TouchableOpacity 
+                      style={styles.deleteButton}
+                      onPress={() => {
+                        Alert.alert(
+                          "Delete Image",
+                          "Are you sure you want to delete this image?",
+                          [
+                            {
+                              text: "Cancel",
+                              style: "cancel"
+                            },
+                            {
+                              text: "Delete",
+                              style: "destructive",
+                              onPress: async () => {
+                                const currentScan = selectedDayScans.scans[selectedDayScans.currentIndex];
+                                const success = await dataStore.deletePhysiqueRecord(currentScan.recordId);
+                                if (success) {
+                                  // Refresh data
+                                  await loadData();
+                                  // Close modal if no more scans for this day, otherwise move to next scan
+                                  if (selectedDayScans.scans.length === 1) {
+                                    setModalVisible(false);
+                                  } else {
+                                    // Remove the deleted scan and adjust index
+                                    const newScans = selectedDayScans.scans.filter((_, i) => i !== selectedDayScans.currentIndex);
+                                    const newIndex = Math.min(selectedDayScans.currentIndex, newScans.length - 1);
+                                    setSelectedDayScans({
+                                      ...selectedDayScans,
+                                      scans: newScans,
+                                      currentIndex: newIndex
+                                    });
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        );
+                      }}
+                    >
+                      <RNText style={styles.deleteButtonText}>×</RNText>
+                    </TouchableOpacity>
                   </View>
+
+                  {/* Image with side navigation arrows */}
+                  <View style={styles.imageContainer}>
+                    {selectedDayScans.scans.length > 1 && (
+                      <TouchableOpacity 
+                        style={[styles.sideNavButton, styles.leftNavButton, selectedDayScans.currentIndex === 0 && styles.sideNavButtonDisabled]}
+                        onPress={() => {
+                          if (selectedDayScans.currentIndex > 0) {
+                            setSelectedDayScans({
+                              ...selectedDayScans,
+                              currentIndex: selectedDayScans.currentIndex - 1
+                            });
+                          }
+                        }}
+                        disabled={selectedDayScans.currentIndex === 0}
+                      >
+                        <RNText style={[styles.sideNavButtonText, selectedDayScans.currentIndex === 0 && styles.sideNavButtonTextDisabled]}>‹</RNText>
+                      </TouchableOpacity>
+                    )}
+                    
+                    <Image
+                      source={{ uri: selectedDayScans.scans[selectedDayScans.currentIndex].image }}
+                      style={styles.modalImage}
+                      onLayout={(e: LayoutChangeEvent) => {
+                        const { x, y, width, height } = e.nativeEvent.layout;
+                        setModalImageLayout({ x, y, width, height });
+                      }}
+                    />
+                    
+                    {selectedDayScans.scans.length > 1 && (
+                      <TouchableOpacity 
+                        style={[styles.sideNavButton, styles.rightNavButton, selectedDayScans.currentIndex === selectedDayScans.scans.length - 1 && styles.sideNavButtonDisabled]}
+                        onPress={() => {
+                          if (selectedDayScans.currentIndex < selectedDayScans.scans.length - 1) {
+                            setSelectedDayScans({
+                              ...selectedDayScans,
+                              currentIndex: selectedDayScans.currentIndex + 1
+                            });
+                          }
+                        }}
+                        disabled={selectedDayScans.currentIndex === selectedDayScans.scans.length - 1}
+                      >
+                        <RNText style={[styles.sideNavButtonText, selectedDayScans.currentIndex === selectedDayScans.scans.length - 1 && styles.sideNavButtonTextDisabled]}>›</RNText>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  
+                  <View style={[styles.modalTag, { backgroundColor: selectedDayScans.scans[selectedDayScans.currentIndex].change.color + '22' }]}> 
+                    <RNText style={[styles.modalTagText, { color: selectedDayScans.scans[selectedDayScans.currentIndex].change.color }]}>
+                      {selectedDayScans.scans[selectedDayScans.currentIndex].change.text}
+                    </RNText>
+                  </View>
+                  
                   <TouchableOpacity style={styles.modalClose} onPress={() => setModalVisible(false)}>
                     <RNText style={styles.modalCloseText}>Close</RNText>
                   </TouchableOpacity>
@@ -751,8 +891,14 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.4)',
   },
   calendarDayRectScan: {
-    backgroundColor: '#8b5cf6',
-    borderColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: '#4CD964', // Green background for scan days
+    borderColor: '#ffffff',
+    borderWidth: 2,
+    shadowColor: '#4CD964',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 4,
   },
   calendarDayTextRect: {
     color: '#fff',
@@ -825,5 +971,62 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     opacity: 0.5,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    width: '100%',
+  },
+  modalCounter: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+  },
+  deleteButton: {
+    padding: 8,
+    backgroundColor: '#FF3B30',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  imageContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  sideNavButton: {
+    position: 'absolute',
+    top: '50%',
+    zIndex: 10,
+    padding: 8,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    transform: [{ translateY: -20 }],
+  },
+  leftNavButton: {
+    left: -25,
+  },
+  rightNavButton: {
+    right: -25,
+  },
+  sideNavButtonDisabled: {
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  sideNavButtonText: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  sideNavButtonTextDisabled: {
+    color: 'rgba(255,255,255,0.3)',
   },
 }); 
