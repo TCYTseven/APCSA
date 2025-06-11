@@ -46,19 +46,20 @@ function getScoreChange(currentScore: number, previousScore: number): { text: st
 }
 
 const ProgressBar = ({ title, value }: { title: string; value: number }) => {
-  const scoreColor = getScoreColor(value);
+  const roundedValue = Math.round(value);
+  const scoreColor = getScoreColor(roundedValue);
   
   return (
     <View style={styles.progressBarContainer}>
       <View style={styles.progressLabelContainer}>
         <ThemedText style={styles.progressLabel}>{title}</ThemedText>
-        <ThemedText style={[styles.progressValue, { color: scoreColor }]}>{value}/100</ThemedText>
+        <ThemedText style={[styles.progressValue, { color: scoreColor }]}>{roundedValue}/100</ThemedText>
       </View>
       <View style={styles.progressBackground}>
         <View 
           style={[
             styles.progressFill, 
-            { width: `${value}%`, backgroundColor: scoreColor }
+            { width: `${roundedValue}%`, backgroundColor: scoreColor }
           ]} 
         />
       </View>
@@ -392,8 +393,8 @@ export default function ProgressScreen() {
   const [userProfile, setUserProfile] = useState<any>(null);
   
   // Calculate recent improvement
-  const latestScore = progressData.length > 0 ? progressData[progressData.length - 1].score : 0;
-  const previousScore = progressData.length > 1 ? progressData[progressData.length - 2].score : 0;
+  const latestScore = progressData.length > 0 ? Math.round(progressData[progressData.length - 1].score) : 0;
+  const previousScore = progressData.length > 1 ? Math.round(progressData[progressData.length - 2].score) : 0;
   const improvement = latestScore - previousScore;
   const streakCount = physiqueRecords.length; // Number of scans taken
   
@@ -534,7 +535,7 @@ export default function ProgressScreen() {
         <View style={styles.chartContainer}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>Progress Chart</ThemedText>
           {progressData.length > 0 ? (
-            <LineChart data={progressData} />
+            <LineChart data={progressData.map(item => ({ ...item, score: Math.round(item.score) }))} />
           ) : (
             <View style={styles.noDataContainer}>
               <ThemedText style={styles.noDataText}>📊 No scan data yet</ThemedText>
@@ -546,9 +547,9 @@ export default function ProgressScreen() {
         {/* Body Areas Section */}
         <View style={styles.bodyAreasContainer}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>Body Areas</ThemedText>
-          {Object.entries(currentScores).map(([muscleGroup, score]) => (
-            <ProgressBar key={muscleGroup} title={muscleGroup} value={score} />
-          ))}
+                  {Object.entries(currentScores).map(([muscleGroup, score]) => (
+          <ProgressBar key={muscleGroup} title={muscleGroup} value={Math.round(score)} />
+        ))}
         </View>
 
         {/* Compare Button */}
