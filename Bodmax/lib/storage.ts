@@ -1,3 +1,4 @@
+import * as FileSystem from 'expo-file-system'
 import { authService } from './auth'
 import { supabase } from './supabase'
 
@@ -23,12 +24,56 @@ class StorageService {
       const filePath = `${user.id}/${fileName}`
 
       console.log('📸 Uploading image to:', filePath)
+      console.log('📷 Image URI:', imageUri)
 
-      // Convert image URI to blob for upload
-      const response = await fetch(imageUri)
-      const blob = await response.blob()
+      let blob: Blob
+
+      // Handle different types of image URIs
+      if (imageUri.startsWith('file://') || imageUri.startsWith('ph://') || imageUri.startsWith('assets-library://')) {
+        // Local file URI (camera roll, camera capture) - use FileSystem
+        console.log('🔄 Converting local image URI to blob using FileSystem...')
+        
+        try {
+          // Read file as base64
+          const base64 = await FileSystem.readAsStringAsync(imageUri, {
+            encoding: FileSystem.EncodingType.Base64,
+          })
+          
+          // Convert base64 to blob
+          const byteCharacters = atob(base64)
+          const byteNumbers = new Array(byteCharacters.length)
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i)
+          }
+          const byteArray = new Uint8Array(byteNumbers)
+          blob = new Blob([byteArray], { type: 'image/jpeg' })
+          
+          console.log('✅ Local image converted to blob, size:', blob.size, 'bytes')
+        } catch (fileSystemError) {
+          console.error('❌ FileSystem approach failed:', fileSystemError)
+          // Fallback to fetch approach
+          const response = await fetch(imageUri)
+          blob = await response.blob()
+          console.log('✅ Fallback fetch successful, blob size:', blob.size, 'bytes')
+        }
+      } else {
+        // HTTP URL or other URI - use standard fetch
+        console.log('🔄 Converting HTTP image URI to blob using fetch...')
+        const response = await fetch(imageUri)
+        if (!response.ok) {
+          throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`)
+        }
+        blob = await response.blob()
+        console.log('✅ HTTP image converted to blob, size:', blob.size, 'bytes')
+      }
+
+      // Validate blob size
+      if (blob.size === 0) {
+        throw new Error('Image blob is empty. The image may be corrupted or inaccessible.')
+      }
 
       // Upload to Supabase Storage
+      console.log('☁️ Uploading blob to Supabase Storage...')
       const { data, error } = await supabase.storage
         .from(this.bucketName)
         .upload(filePath, blob, {

@@ -95,15 +95,30 @@ class DataStore {
         let imageUri = record.image_url;
         
         // If the image_url is a Supabase storage URL, create a signed URL
-        if (record.image_url && record.image_url.includes('/storage/v1/object/public/')) {
+        if (record.image_url && record.image_url.includes('/storage/v1/object/')) {
           try {
-            const path = record.image_url.split('/physique-images/')[1];
+            // Extract the file path more robustly
+            let path: string | null = null;
+            
+            // Handle both public and signed URLs
+            if (record.image_url.includes('/physique-images/')) {
+              const parts = record.image_url.split('/physique-images/');
+              if (parts.length > 1) {
+                path = parts[1].split('?')[0]; // Remove any existing query parameters
+              }
+            }
+            
             if (path) {
+              console.log('🔗 Creating signed URL for path:', path);
               const { storageService } = await import('./storage');
               imageUri = await storageService.getSignedUrl(path, 3600); // 1 hour expiry
+              console.log('✅ Signed URL created successfully');
+            } else {
+              console.warn('⚠️ Could not extract path from image URL:', record.image_url);
             }
           } catch (error) {
             console.error('❌ Failed to create signed URL:', error);
+            console.log('🔄 Falling back to original URL:', record.image_url);
             // Fall back to original URL
           }
         }
@@ -132,15 +147,30 @@ class DataStore {
     let imageUri = record.image_url;
     
     // If the image_url is a Supabase storage URL, create a signed URL
-    if (record.image_url && record.image_url.includes('/storage/v1/object/public/')) {
+    if (record.image_url && record.image_url.includes('/storage/v1/object/')) {
       try {
-        const path = record.image_url.split('/physique-images/')[1];
+        // Extract the file path more robustly
+        let path: string | null = null;
+        
+        // Handle both public and signed URLs
+        if (record.image_url.includes('/physique-images/')) {
+          const parts = record.image_url.split('/physique-images/');
+          if (parts.length > 1) {
+            path = parts[1].split('?')[0]; // Remove any existing query parameters
+          }
+        }
+        
         if (path) {
+          console.log('🔗 Creating signed URL for path:', path);
           const { storageService } = await import('./storage');
           imageUri = await storageService.getSignedUrl(path, 3600); // 1 hour expiry
+          console.log('✅ Signed URL created successfully');
+        } else {
+          console.warn('⚠️ Could not extract path from image URL:', record.image_url);
         }
       } catch (error) {
         console.error('❌ Failed to create signed URL:', error);
+        console.log('🔄 Falling back to original URL:', record.image_url);
         // Fall back to original URL
       }
     }
