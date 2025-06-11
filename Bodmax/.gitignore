@@ -41,4 +41,4 @@ yarn-error.*
 
 app-example
 
-*
+/lib/config.ts
