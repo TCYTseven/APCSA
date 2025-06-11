@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, Image, LayoutChangeEvent, Modal, Platform, Text as RNText, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Animated, Dimensions, Image, LayoutChangeEvent, Modal, Platform, Text as RNText, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Line } from 'react-native-svg';
 
@@ -20,6 +20,15 @@ const getScoreColor = (score: number): string => {
   if (score >= 45) return '#FFA500'; // Orange
   if (score >= 35) return '#FF7643'; // Orange-red
   return '#FF3B30'; // Red for low scores
+};
+
+// Helper function to format date as mm/dd/yy
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString);
+  const month = date.getMonth() + 1; // getMonth() returns 0-11
+  const day = date.getDate();
+  const year = date.getFullYear().toString().slice(-2); // Get last 2 digits of year
+  return `${month}/${day}/${year}`;
 };
 
 // Mock data for progress chart - converted to 100-based scale
@@ -589,53 +598,11 @@ export default function ProgressScreen() {
                 <>
                   <View style={styles.modalHeader}>
                     <RNText style={styles.modalDate}>
-                      Scan: {selectedDayScans.date}
+                      Scan: {formatDate(selectedDayScans.date)}
                       {selectedDayScans.scans.length > 1 && (
                         <RNText style={styles.modalCounter}> ({selectedDayScans.currentIndex + 1}/{selectedDayScans.scans.length})</RNText>
                       )}
                     </RNText>
-                    <TouchableOpacity 
-                      style={styles.deleteButton}
-                      onPress={() => {
-                        Alert.alert(
-                          "Delete Image",
-                          "Are you sure you want to delete this image?",
-                          [
-                            {
-                              text: "Cancel",
-                              style: "cancel"
-                            },
-                            {
-                              text: "Delete",
-                              style: "destructive",
-                              onPress: async () => {
-                                const currentScan = selectedDayScans.scans[selectedDayScans.currentIndex];
-                                const success = await dataStore.deletePhysiqueRecord(currentScan.recordId);
-                                if (success) {
-                                  // Refresh data
-                                  await loadData();
-                                  // Close modal if no more scans for this day, otherwise move to next scan
-                                  if (selectedDayScans.scans.length === 1) {
-                                    setModalVisible(false);
-                                  } else {
-                                    // Remove the deleted scan and adjust index
-                                    const newScans = selectedDayScans.scans.filter((_, i) => i !== selectedDayScans.currentIndex);
-                                    const newIndex = Math.min(selectedDayScans.currentIndex, newScans.length - 1);
-                                    setSelectedDayScans({
-                                      ...selectedDayScans,
-                                      scans: newScans,
-                                      currentIndex: newIndex
-                                    });
-                                  }
-                                }
-                              }
-                            }
-                          ]
-                        );
-                      }}
-                    >
-                      <RNText style={styles.deleteButtonText}>×</RNText>
-                    </TouchableOpacity>
                   </View>
 
                   {/* Image with side navigation arrows */}
@@ -984,29 +951,14 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 12,
     width: '100%',
   },
   modalCounter: {
     color: 'rgba(255,255,255,0.7)',
     fontSize: 12,
-  },
-  deleteButton: {
-    padding: 8,
-    backgroundColor: '#FF3B30',
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  deleteButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
   },
   imageContainer: {
     flexDirection: 'row',
