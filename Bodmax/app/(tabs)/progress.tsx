@@ -443,12 +443,15 @@ export default function ProgressScreen() {
 
   // Handle day press with support for multiple images per day
   function handleDayPress(day: number) {
-    const scanDays = physiqueRecords.map(record => ({
-      date: record.createdAt.split('T')[0],
-      image: record.imageUri,
-      score: Math.round(Object.values(record.scores).reduce((sum, score) => sum + score, 0) / Object.values(record.scores).length),
-      recordId: record.id
-    }));
+    const scanDays = physiqueRecords.map(record => {
+      console.log('🔍 Physique record imageUri:', record.imageUri);
+      return {
+        date: record.createdAt.split('T')[0],
+        image: record.imageUri,
+        score: Math.round(Object.values(record.scores).reduce((sum, score) => sum + score, 0) / Object.values(record.scores).length),
+        recordId: record.id
+      };
+    });
     
     // Get all scans for the selected day
     const dayScans = scanDays.filter((d: ScanDay) => parseInt(d.date.split('-')[2]) === day);
@@ -660,6 +663,13 @@ export default function ProgressScreen() {
                       onLayout={(e: LayoutChangeEvent) => {
                         const { x, y, width, height } = e.nativeEvent.layout;
                         setModalImageLayout({ x, y, width, height });
+                      }}
+                      onError={(error) => {
+                        console.error('❌ Image load error:', error.nativeEvent.error);
+                        console.log('🖼️ Image URI:', selectedDayScans.scans[selectedDayScans.currentIndex].image);
+                      }}
+                      onLoad={() => {
+                        console.log('✅ Image loaded successfully:', selectedDayScans.scans[selectedDayScans.currentIndex].image);
                       }}
                     />
                     

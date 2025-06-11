@@ -24,6 +24,7 @@ export default function PhotoInsightsScreen() {
   const [showCamera, setShowCamera] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isCameraReady, setIsCameraReady] = useState(false);
   const cameraRef = useRef<CameraView>(null);
   const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
@@ -40,16 +41,13 @@ export default function PhotoInsightsScreen() {
         throw new Error('User profile not found. Please complete onboarding first.');
       }
 
-      // Get current scores for comparison
-      const currentScores = await dataStore.getCurrentScores();
-
       // Prepare user metadata
       const userMetadata: UserMetadata = {
         height: userProfile.height,
         weight: userProfile.weight,
         gender: userProfile.gender,
-        desiredPhysique: userProfile.desiredPhysique,
-        previousScores: currentScores,
+        desiredPhysique: userProfile.desired_physique,
+        previousScores: {}, // Empty object - let AI score objectively without bias
       };
 
       // Call the analysis service - try real API first, fallback to mock
@@ -102,10 +100,19 @@ export default function PhotoInsightsScreen() {
 
   // Define capturePhoto function before it's used in countdown effect
   const capturePhoto = async () => {
-    if (!cameraRef.current || isCapturing) return;
+    if (!cameraRef.current || isCapturing || !isCameraReady) return;
     
     try {
       setIsCapturing(true);
+      
+      // Wait a bit longer to ensure camera is fully ready
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Check if camera ref is still available after delay
+      if (!cameraRef.current) {
+        throw new Error('Camera is not available');
+      }
+      
       const photo = await cameraRef.current.takePictureAsync({
         quality: 1,
         base64: false,
@@ -138,6 +145,21 @@ export default function PhotoInsightsScreen() {
       console.error('Error taking photo:', error);
       Alert.alert('Error', 'Failed to capture photo. Please try again.');
       setIsCapturing(false);
+      setShowCamera(false);
+      
+      // Restore tab bar on error
+      const parent = navigation.getParent();
+      if (parent) {
+        parent.setOptions({
+          tabBarStyle: undefined,
+          tabBarVisible: true,
+        });
+      }
+      
+      navigation.setOptions({
+        tabBarStyle: undefined,
+        tabBarVisible: true,
+      });
     }
   };
 
@@ -237,15 +259,21 @@ export default function PhotoInsightsScreen() {
     });
 
     setShowCamera(true);
-
-    // Show timer countdown if needed
-    if (timerDuration > 0) {
-      setIsCountingDown(true);
-      setCountdownNumber(timerDuration);
-    } else {
-      // Take photo immediately
-      setTimeout(() => capturePhoto(), 500); // Small delay to let camera initialize
-    }
+    setIsCameraReady(false); // Reset camera ready state
+    
+    // Wait for camera to initialize before allowing capture
+    setTimeout(() => {
+      setIsCameraReady(true);
+      
+      // Show timer countdown if needed
+      if (timerDuration > 0) {
+        setIsCountingDown(true);
+        setCountdownNumber(timerDuration);
+      } else {
+        // Take photo immediately after camera is ready
+        setTimeout(() => capturePhoto(), 1000); // Give camera more time to initialize
+      }
+    }, 2000); // Wait 2 seconds for camera to fully initialize
   };
 
   const toggleTimer = () => {
@@ -266,6 +294,7 @@ export default function PhotoInsightsScreen() {
     setIsCountingDown(false);
     setCountdownNumber(0);
     setShowCamera(false);
+    setIsCameraReady(false);
     
     // Restore tab bar immediately
     const parent = navigation.getParent();
@@ -286,6 +315,7 @@ export default function PhotoInsightsScreen() {
     setShowCamera(false);
     setIsCountingDown(false);
     setCountdownNumber(0);
+    setIsCameraReady(false);
     
     // Restore tab bar immediately
     const parent = navigation.getParent();
@@ -318,7 +348,8 @@ export default function PhotoInsightsScreen() {
                 <Ionicons name="close" size={30} color="white" />
               </TouchableOpacity>
               <ThemedText style={styles.cameraTitle}>
-                {isCountingDown ? `Taking photo in ${countdownNumber}...` : 'Position yourself'}
+                {isCountingDown ? `Taking photo in ${countdownNumber}...` : 
+                 !isCameraReady ? 'Camera loading...' : 'Position yourself'}
               </ThemedText>
               <TouchableOpacity onPress={toggleCamera} style={styles.flipButton}>
                 <Ionicons name="camera-reverse" size={30} color="white" />
@@ -336,10 +367,15 @@ export default function PhotoInsightsScreen() {
 
             {/* Bottom bar */}
             <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 20 }]}>
-              {!isCountingDown && !isCapturing && (
+              {!isCountingDown && !isCapturing && isCameraReady && (
                 <TouchableOpacity onPress={capturePhoto} style={styles.captureButton}>
                   <View style={styles.captureButtonInner} />
                 </TouchableOpacity>
+              )}
+              {!isCountingDown && !isCapturing && !isCameraReady && (
+                <View style={[styles.captureButton, { opacity: 0.5 }]}>
+                  <View style={styles.captureButtonInner} />
+                </View>
               )}
               {isCountingDown && (
                 <TouchableOpacity onPress={cancelCountdown} style={styles.cancelButton}>

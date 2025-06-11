@@ -89,16 +89,38 @@ class DataStore {
   async getPhysiqueRecords(userId: string): Promise<LegacyPhysiqueRecord[]> {
     const records = await supabaseDataStore.getPhysiqueRecords()
     
-    // Convert to legacy format
-    return records.map(record => ({
-      id: record.id,
-      userId: record.user_id,
-      imageUri: record.image_url,
-      scores: record.scores,
-      identifiedParts: record.identified_parts,
-      advice: record.advice,
-      createdAt: record.created_at || new Date().toISOString(),
-    }))
+    // Convert to legacy format and generate signed URLs for images
+    const recordsWithSignedUrls = await Promise.all(
+      records.map(async (record) => {
+        let imageUri = record.image_url;
+        
+        // If the image_url is a Supabase storage URL, create a signed URL
+        if (record.image_url && record.image_url.includes('/storage/v1/object/public/')) {
+          try {
+            const path = record.image_url.split('/physique-images/')[1];
+            if (path) {
+              const { storageService } = await import('./storage');
+              imageUri = await storageService.getSignedUrl(path, 3600); // 1 hour expiry
+            }
+          } catch (error) {
+            console.error('❌ Failed to create signed URL:', error);
+            // Fall back to original URL
+          }
+        }
+        
+        return {
+          id: record.id,
+          userId: record.user_id,
+          imageUri,
+          scores: record.scores,
+          identifiedParts: record.identified_parts,
+          advice: record.advice,
+          createdAt: record.created_at || new Date().toISOString(),
+        };
+      })
+    );
+    
+    return recordsWithSignedUrls;
   }
 
   async getLatestPhysiqueRecord(userId: string): Promise<LegacyPhysiqueRecord | null> {
@@ -106,11 +128,27 @@ class DataStore {
     
     if (!record) return null
 
-    // Convert to legacy format
+    // Convert to legacy format and generate signed URL for image
+    let imageUri = record.image_url;
+    
+    // If the image_url is a Supabase storage URL, create a signed URL
+    if (record.image_url && record.image_url.includes('/storage/v1/object/public/')) {
+      try {
+        const path = record.image_url.split('/physique-images/')[1];
+        if (path) {
+          const { storageService } = await import('./storage');
+          imageUri = await storageService.getSignedUrl(path, 3600); // 1 hour expiry
+        }
+      } catch (error) {
+        console.error('❌ Failed to create signed URL:', error);
+        // Fall back to original URL
+      }
+    }
+
     return {
       id: record.id,
       userId: record.user_id,
-      imageUri: record.image_url,
+      imageUri,
       scores: record.scores,
       identifiedParts: record.identified_parts,
       advice: record.advice,
