@@ -8,6 +8,7 @@ interface AuthContextType {
   user: User | null
   profile: UserProfile | null
   loading: boolean
+  initialized: boolean
   signUp: (data: {
     email: string
     password: string
@@ -29,14 +30,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [initialized, setInitialized] = useState(false)
 
   useEffect(() => {
-    // Get initial session
-    authService.getSession().then(setSession)
+    let mounted = true
+    
+    const initializeAuth = async () => {
+      try {
+        console.log('🔐 Initializing auth context...')
+        
+        // First, get the initial session
+        const initialSession = await authService.getSession()
+        
+        if (mounted) {
+          setSession(initialSession)
+          setUser(initialSession?.user ?? null)
+          
+          // Load profile if we have a user
+          if (initialSession?.user) {
+            await loadUserProfile()
+          }
+          
+          console.log('✅ Auth context initialized with session:', !!initialSession)
+          setInitialized(true)
+          setLoading(false)
+        }
+      } catch (error) {
+        console.error('❌ Auth initialization error:', error)
+        if (mounted) {
+          setInitialized(true)
+          setLoading(false)
+        }
+      }
+    }
 
-    // Listen for auth changes
+    // Initialize auth state
+    initializeAuth()
+
+    // Set up auth state listener
     const { data: { subscription } } = authService.onAuthStateChange(
       async (event, session) => {
+        if (!mounted) return
+        
         console.log('🔐 Auth state change:', event, session?.user?.id)
         setSession(session)
         setUser(session?.user ?? null)
@@ -49,11 +84,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setProfile(null)
         }
 
-        setLoading(false)
+        // Only set loading to false after initialization is complete
+        if (initialized) {
+          setLoading(false)
+        }
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   const loadUserProfile = async () => {
@@ -74,6 +115,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     desired_physique: string
   }) => {
     try {
+      // Wait for initialization to complete before attempting signup
+      if (!initialized) {
+        console.log('⏳ Waiting for auth initialization...')
+        let attempts = 0
+        while (!initialized && attempts < 50) { // Max 5 seconds wait
+          await new Promise(resolve => setTimeout(resolve, 100))
+          attempts++
+        }
+        if (!initialized) {
+          throw new Error('Authentication system not ready. Please try again.')
+        }
+      }
+      
       setLoading(true)
       const result = await authService.signUp(data)
       
@@ -97,6 +151,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
+      // Wait for initialization to complete before attempting signin
+      if (!initialized) {
+        console.log('⏳ Waiting for auth initialization...')
+        let attempts = 0
+        while (!initialized && attempts < 50) { // Max 5 seconds wait
+          await new Promise(resolve => setTimeout(resolve, 100))
+          attempts++
+        }
+        if (!initialized) {
+          throw new Error('Authentication system not ready. Please try again.')
+        }
+      }
+      
       setLoading(true)
       await authService.signIn({ email, password })
       // Session will be set automatically via auth state change
@@ -142,6 +209,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     profile,
     loading,
+    initialized,
     signUp,
     signIn,
     signOut,
