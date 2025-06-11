@@ -1,4 +1,4 @@
-import { dataStore } from '@/lib/dataStore';
+import { useAuth } from '@/lib/AuthContext';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
@@ -31,6 +31,7 @@ export default function Onboarding() {
     password: '',
   });
 
+  const { signUp } = useAuth();
   const insets = useSafeAreaInsets();
 
   const handleNext = (step: string) => {
@@ -61,22 +62,29 @@ export default function Onboarding() {
 
   const handleComplete = async () => {
     try {
-      // Convert and save user profile to data store
-      const userProfile = {
+      console.log('🚀 Starting Supabase signup process...');
+      
+      // Use Supabase authentication signup
+      await signUp({
         email: userData.email,
+        password: userData.password,
         gender: userData.gender as 'male' | 'female',
         height: parseHeight(userData.height),
         weight: parseInt(userData.weight) || 150,
-        desiredPhysique: userData.idealPhysique,
-      };
+        desired_physique: userData.idealPhysique,
+      });
 
-      await dataStore.saveUserProfile(userProfile);
+      console.log('✅ User signup completed successfully');
       
-      console.log('User profile saved:', userProfile);
+      // Navigate to main app - user is now authenticated
       router.push('/(tabs)');
     } catch (error) {
-      console.error('Error saving user profile:', error);
-      Alert.alert('Error', 'Failed to save your profile. Please try again.');
+      console.error('❌ Error during signup:', error);
+      Alert.alert(
+        'Signup Error', 
+        error instanceof Error ? error.message : 'Failed to create your account. Please try again.',
+        [{ text: 'OK' }]
+      );
     }
   };
 

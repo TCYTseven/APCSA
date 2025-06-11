@@ -1,22 +1,16 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// MIGRATION NOTICE: This file now uses Supabase instead of AsyncStorage
+// The old AsyncStorage implementation has been moved to dataStore.legacy.ts
+// This maintains backward compatibility while using the new Supabase backend
 
-// Types for user data
-export interface UserProfile {
-  id: string;
-  email: string;
-  gender: 'male' | 'female';
-  height: number; // in inches
-  weight: number; // in pounds
-  desiredPhysique: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import { authService } from './auth';
+import type { MuscleGroupScore, UserProfile } from './database.types';
+import { supabaseDataStore } from './supabaseDataStore';
 
-export interface MuscleGroupScore {
-  [muscleGroup: string]: number;
-}
+// Re-export types for backward compatibility
+export type { MuscleGroupScore, PhysiqueRecord, UserProfile } from './database.types';
 
-export interface PhysiqueRecord {
+// Legacy interface mapping for backward compatibility
+export interface LegacyPhysiqueRecord {
   id: string;
   userId: string;
   imageUri: string;
@@ -26,159 +20,115 @@ export interface PhysiqueRecord {
   createdAt: string;
 }
 
-// Storage keys
-const STORAGE_KEYS = {
-  USER_PROFILE: 'user_profile',
-  PHYSIQUE_RECORDS: 'physique_records',
-  CURRENT_SCORES: 'current_scores',
-} as const;
-
 class DataStore {
-  // User Profile Management
-  async saveUserProfile(profile: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'>): Promise<UserProfile> {
-    const now = new Date().toISOString();
-    const userProfile: UserProfile = {
-      ...profile,
-      id: 'user_' + Date.now(),
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    await AsyncStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(userProfile));
-    return userProfile;
+  // User Profile Management - Now uses Supabase
+  async saveUserProfile(profile: Omit<UserProfile, 'id' | 'created_at' | 'updated_at'>): Promise<UserProfile> {
+    try {
+      // Check if we're in a signup flow (no authenticated user yet)
+      const user = await authService.getUser()
+      
+      if (!user) {
+        // During signup, profile creation is handled by the database trigger
+        // Return a placeholder that matches the expected format
+        console.log('📝 Profile will be created automatically during signup')
+        return {
+          id: 'pending',
+          created_at: null,
+          updated_at: null,
+          ...profile
+        }
+      }
+      
+      // For authenticated users, update the profile
+      return await supabaseDataStore.saveUserProfile(profile)
+    } catch (error) {
+      console.error('❌ Legacy saveUserProfile error:', error)
+      // Return a placeholder to maintain compatibility
+      return {
+        id: 'error',
+        created_at: null,
+        updated_at: null,
+        ...profile
+      }
+    }
   }
 
   async getUserProfile(): Promise<UserProfile | null> {
-    try {
-      const profileData = await AsyncStorage.getItem(STORAGE_KEYS.USER_PROFILE);
-      return profileData ? JSON.parse(profileData) : null;
-    } catch (error) {
-      console.error('Error getting user profile:', error);
-      return null;
+    return await supabaseDataStore.getUserProfile()
+  }
+
+  async updateUserProfile(updates: Partial<Omit<UserProfile, 'id' | 'created_at'>>): Promise<UserProfile | null> {
+    return await supabaseDataStore.updateUserProfile(updates)
+  }
+
+  // Physique Records Management - Now uses Supabase with backward compatibility
+  async savePhysiqueRecord(record: Omit<LegacyPhysiqueRecord, 'id' | 'createdAt'>): Promise<LegacyPhysiqueRecord> {
+    // Convert legacy format to new format
+    const newRecord = {
+      user_id: record.userId,
+      image_url: record.imageUri,
+      scores: record.scores,
+      identified_parts: record.identifiedParts,
+      advice: record.advice,
+    }
+
+    const savedRecord = await supabaseDataStore.savePhysiqueRecord(newRecord)
+
+    // Convert back to legacy format
+    return {
+      id: savedRecord.id,
+      userId: savedRecord.user_id,
+      imageUri: savedRecord.image_url,
+      scores: savedRecord.scores,
+      identifiedParts: savedRecord.identified_parts,
+      advice: savedRecord.advice,
+      createdAt: savedRecord.created_at || new Date().toISOString(),
     }
   }
 
-  async updateUserProfile(updates: Partial<Omit<UserProfile, 'id' | 'createdAt'>>): Promise<UserProfile | null> {
-    const currentProfile = await this.getUserProfile();
-    if (!currentProfile) {
-      throw new Error('No user profile found to update');
+  async getPhysiqueRecords(userId: string): Promise<LegacyPhysiqueRecord[]> {
+    const records = await supabaseDataStore.getPhysiqueRecords()
+    
+    // Convert to legacy format
+    return records.map(record => ({
+      id: record.id,
+      userId: record.user_id,
+      imageUri: record.image_url,
+      scores: record.scores,
+      identifiedParts: record.identified_parts,
+      advice: record.advice,
+      createdAt: record.created_at || new Date().toISOString(),
+    }))
+  }
+
+  async getLatestPhysiqueRecord(userId: string): Promise<LegacyPhysiqueRecord | null> {
+    const record = await supabaseDataStore.getLatestPhysiqueRecord()
+    
+    if (!record) return null
+
+    // Convert to legacy format
+    return {
+      id: record.id,
+      userId: record.user_id,
+      imageUri: record.image_url,
+      scores: record.scores,
+      identifiedParts: record.identified_parts,
+      advice: record.advice,
+      createdAt: record.created_at || new Date().toISOString(),
     }
-
-    const updatedProfile: UserProfile = {
-      ...currentProfile,
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    };
-
-    await AsyncStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(updatedProfile));
-    return updatedProfile;
-  }
-
-  // Physique Records Management
-  async savePhysiqueRecord(record: Omit<PhysiqueRecord, 'id' | 'createdAt'>): Promise<PhysiqueRecord> {
-    const newRecord: PhysiqueRecord = {
-      ...record,
-      id: 'record_' + Date.now(),
-      createdAt: new Date().toISOString(),
-    };
-
-    // Get existing records
-    const existingRecords = await this.getPhysiqueRecords(record.userId);
-    const updatedRecords = [...existingRecords, newRecord];
-
-    // Save updated records
-    await AsyncStorage.setItem(STORAGE_KEYS.PHYSIQUE_RECORDS, JSON.stringify(updatedRecords));
-
-    // Update current scores
-    await this.updateCurrentScores(record.scores);
-
-    return newRecord;
-  }
-
-  async getPhysiqueRecords(userId: string): Promise<PhysiqueRecord[]> {
-    try {
-      const recordsData = await AsyncStorage.getItem(STORAGE_KEYS.PHYSIQUE_RECORDS);
-      const allRecords: PhysiqueRecord[] = recordsData ? JSON.parse(recordsData) : [];
-      
-      // Filter records for the specific user
-      return allRecords.filter(record => record.userId === userId);
-    } catch (error) {
-      console.error('Error getting physique records:', error);
-      return [];
-    }
-  }
-
-  async getLatestPhysiqueRecord(userId: string): Promise<PhysiqueRecord | null> {
-    const records = await this.getPhysiqueRecords(userId);
-    if (records.length === 0) return null;
-
-    // Sort by creation date and return the most recent
-    return records.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
   }
 
   async deletePhysiqueRecord(recordId: string): Promise<boolean> {
-    try {
-      const recordsData = await AsyncStorage.getItem(STORAGE_KEYS.PHYSIQUE_RECORDS);
-      if (!recordsData) return false;
-      
-      const allRecords: PhysiqueRecord[] = JSON.parse(recordsData);
-      const recordIndex = allRecords.findIndex(record => record.id === recordId);
-      
-      if (recordIndex === -1) return false;
-      
-      // Remove the record
-      allRecords.splice(recordIndex, 1);
-      await AsyncStorage.setItem(STORAGE_KEYS.PHYSIQUE_RECORDS, JSON.stringify(allRecords));
-      
-      console.log('🗑️ Deleted physique record:', recordId);
-      return true;
-    } catch (error) {
-      console.error('Error deleting physique record:', error);
-      return false;
-    }
+    return await supabaseDataStore.deletePhysiqueRecord(recordId)
   }
 
-  // Current Scores Management
+  // Current Scores Management - Now uses Supabase
   async getCurrentScores(): Promise<MuscleGroupScore> {
-    try {
-      const userProfile = await this.getUserProfile();
-      if (!userProfile) {
-        return this.getDefaultScores();
-      }
-      
-      const userScoresKey = `${STORAGE_KEYS.CURRENT_SCORES}_${userProfile.id}`;
-      const scoresData = await AsyncStorage.getItem(userScoresKey);
-      return scoresData ? JSON.parse(scoresData) : this.getDefaultScores();
-    } catch (error) {
-      console.error('Error getting current scores:', error);
-      return this.getDefaultScores();
-    }
+    return await supabaseDataStore.getCurrentScores()
   }
 
   async updateCurrentScores(newScores: MuscleGroupScore): Promise<void> {
-    const userProfile = await this.getUserProfile();
-    if (!userProfile) {
-      console.error('No user profile found, cannot update scores');
-      return;
-    }
-
-    // Get existing scores first
-    const currentScores = await this.getCurrentScores();
-    
-    // Merge new scores with existing scores (only update recognized muscle groups)
-    const updatedScores = { ...currentScores };
-    Object.entries(newScores).forEach(([muscle, score]) => {
-      if (score > 0) { // Only update if score is positive (recognized by AI)
-        updatedScores[muscle] = score;
-      }
-    });
-    
-    console.log('📊 Updating scores - Previous:', currentScores);
-    console.log('📊 Updating scores - New:', newScores);
-    console.log('📊 Updating scores - Final:', updatedScores);
-    
-    const userScoresKey = `${STORAGE_KEYS.CURRENT_SCORES}_${userProfile.id}`;
-    await AsyncStorage.setItem(userScoresKey, JSON.stringify(updatedScores));
+    return await supabaseDataStore.updateCurrentScores(newScores)
   }
 
   private getDefaultScores(): MuscleGroupScore {
@@ -196,117 +146,103 @@ class DataStore {
       "Lower back": 0,
       "Hamstring": 0,
       "Gluteal": 0,
-    };
-  }
-
-  // Progress Calculation
-  async getProgressData(userId: string): Promise<Array<{ date: string; score: number }>> {
-    const records = await this.getPhysiqueRecords(userId);
-    
-    return records.map(record => {
-      // Calculate average score across all muscle groups
-      const scores = Object.values(record.scores);
-      const averageScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
-      
-      return {
-        date: new Date(record.createdAt).toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric' 
-        }),
-        score: Math.round(averageScore),
-      };
-    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }
-
-  // Utility Methods
-  async clearAllData(): Promise<void> {
-    const userProfile = await this.getUserProfile();
-    const keysToRemove: string[] = [
-      STORAGE_KEYS.USER_PROFILE,
-      STORAGE_KEYS.PHYSIQUE_RECORDS,
-      STORAGE_KEYS.CURRENT_SCORES,
-    ];
-    
-    // Also remove user-specific scores if user exists
-    if (userProfile) {
-      keysToRemove.push(`${STORAGE_KEYS.CURRENT_SCORES}_${userProfile.id}`);
     }
-    
-    await AsyncStorage.multiRemove(keysToRemove);
+  }
+
+  // Progress Data - Now uses Supabase analytics
+  async getProgressData(userId: string): Promise<Array<{ date: string; score: number }>> {
+    return await supabaseDataStore.getProgressData()
+  }
+
+  // Utility Methods - Now uses Supabase
+  async clearAllData(): Promise<void> {
+    return await supabaseDataStore.clearAllData()
   }
 
   async exportData(): Promise<string> {
-    const profile = await this.getUserProfile();
-    const records = profile ? await this.getPhysiqueRecords(profile.id) : [];
-    const scores = await this.getCurrentScores();
-
-    return JSON.stringify({
-      profile,
-      records,
-      scores,
-      exportedAt: new Date().toISOString(),
-    }, null, 2);
+    return await supabaseDataStore.exportData()
   }
 
-  // Development/Testing helpers
+  // Mock data seeding - Updated for Supabase
   async seedMockData(): Promise<void> {
-    // Create mock user profile
-    const mockProfile: UserProfile = {
-      id: 'user_mock',
-      email: 'test@example.com',
-      gender: 'male',
-      height: 68,
-      weight: 165,
-      desiredPhysique: 'bodybuilder',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    console.log('🌱 Seeding mock data in Supabase...')
+    
+    const user = await authService.getUser()
+    if (!user) {
+      console.error('❌ No authenticated user for seeding data')
+      return
+    }
 
-    await AsyncStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(mockProfile));
+         // Create mock physique records
+     const mockRecords = [
+       {
+         user_id: user.id,
+         image_url: 'https://via.placeholder.com/400x600/FF6B6B/FFFFFF?text=Mock+Photo+1',
+         scores: {
+           "Chest": 75,
+           "Biceps": 68,
+           "Abs": 72,
+           "Deltoids": 70,
+           "Quadriceps": 65,
+           "Triceps": 60,
+         } as MuscleGroupScore,
+         identified_parts: ["Chest", "Biceps", "Abs", "Deltoids", "Quadriceps", "Triceps"],
+         advice: "Great progress on upper body development! Focus on increasing training intensity for triceps and quadriceps to achieve better overall balance.",
+       },
+       {
+         user_id: user.id,
+         image_url: 'https://via.placeholder.com/400x600/4ECDC4/FFFFFF?text=Mock+Photo+2',
+         scores: {
+           "Chest": 78,
+           "Biceps": 72,
+           "Abs": 75,
+           "Deltoids": 73,
+           "Quadriceps": 68,
+           "Triceps": 65,
+           "Upper back": 70,
+         } as MuscleGroupScore,
+         identified_parts: ["Chest", "Biceps", "Abs", "Deltoids", "Quadriceps", "Triceps", "Upper back"],
+         advice: "Excellent improvement across all muscle groups! Your consistency is paying off. Consider adding more posterior chain exercises.",
+       },
+       {
+         user_id: user.id,
+         image_url: 'https://via.placeholder.com/400x600/45B7D1/FFFFFF?text=Mock+Photo+3',
+         scores: {
+           "Chest": 80,
+           "Biceps": 75,
+           "Abs": 78,
+           "Deltoids": 76,
+           "Quadriceps": 72,
+           "Triceps": 68,
+           "Upper back": 73,
+           "Calves": 60,
+         } as MuscleGroupScore,
+         identified_parts: ["Chest", "Biceps", "Abs", "Deltoids", "Quadriceps", "Triceps", "Upper back", "Calves"],
+         advice: "Outstanding physique development! You're showing excellent muscle definition and symmetry. Consider adding calf-specific exercises to round out your development.",
+       }
+     ]
 
-    // Create mock physique records
-    const mockRecords: PhysiqueRecord[] = [
-      {
-        id: 'record_1',
-        userId: 'user_mock',
-        imageUri: 'mock_image_1',
-        scores: {
-          "Deltoids": 70,
-          "Chest": 75,
-          "Biceps": 71,
-          "Abs": 74,
-          "Quadriceps": 69,
-          "Forearm": 65,
-        },
-        identifiedParts: ["Deltoids", "Chest", "Biceps", "Abs", "Quadriceps", "Forearm"],
-        advice: "Great progress! Focus on triceps development.",
-        createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
-      },
-      {
-        id: 'record_2',
-        userId: 'user_mock',
-        imageUri: 'mock_image_2',
-        scores: {
-          "Deltoids": 73,
-          "Chest": 78,
-          "Biceps": 74,
-          "Triceps": 71,
-          "Abs": 76,
-          "Quadriceps": 72,
-          "Upper back": 70,
-          "Trapezius": 75,
-        },
-        identifiedParts: ["Deltoids", "Chest", "Biceps", "Triceps", "Abs", "Quadriceps", "Upper back", "Trapezius"],
-        advice: "Excellent improvement! Keep up the consistent training.",
-        createdAt: new Date().toISOString(),
-      },
-    ];
-
-    await AsyncStorage.setItem(STORAGE_KEYS.PHYSIQUE_RECORDS, JSON.stringify(mockRecords));
-    await this.updateCurrentScores(mockRecords[mockRecords.length - 1].scores);
+    try {
+      for (let i = 0; i < mockRecords.length; i++) {
+        const record = mockRecords[i]
+        await supabaseDataStore.savePhysiqueRecord(record)
+        console.log(`✅ Seeded mock record ${i + 1}/${mockRecords.length}`)
+        
+        // Add small delay between records
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
+      
+      console.log('🎉 Mock data seeding completed successfully!')
+    } catch (error) {
+      console.error('❌ Error seeding mock data:', error)
+      throw error
+    }
   }
 }
 
 // Export singleton instance
-export const dataStore = new DataStore();
-export default DataStore; 
+export const dataStore = new DataStore()
+
+// Export the class for testing
+export { DataStore };
+
