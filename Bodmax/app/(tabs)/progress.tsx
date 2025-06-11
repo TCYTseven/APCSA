@@ -9,7 +9,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { dataStore, type MuscleGroupScore, type PhysiqueRecord } from '@/lib/dataStore';
+import { dataStore, type LegacyPhysiqueRecord, type MuscleGroupScore } from '@/lib/dataStore';
 
 // Helper function to get color based on score
 const getScoreColor = (score: number): string => {
@@ -389,7 +389,7 @@ export default function ProgressScreen() {
   // State for real data
   const [progressData, setProgressData] = useState<Array<{ date: string; score: number }>>([]);
   const [currentScores, setCurrentScores] = useState<MuscleGroupScore>({});
-  const [physiqueRecords, setPhysiqueRecords] = useState<PhysiqueRecord[]>([]);
+  const [physiqueRecords, setPhysiqueRecords] = useState<LegacyPhysiqueRecord[]>([]);
   const [userProfile, setUserProfile] = useState<any>(null);
   
   // Calculate recent improvement
@@ -448,7 +448,7 @@ export default function ProgressScreen() {
       return {
         date: record.createdAt.split('T')[0],
         image: record.imageUri,
-        score: Math.round(Object.values(record.scores).reduce((sum, score) => sum + score, 0) / Object.values(record.scores).length),
+        score: Math.round(Object.values(record.scores).reduce((sum: number, score: number) => sum + score, 0) / Object.values(record.scores).length),
         recordId: record.id
       };
     });
@@ -530,7 +530,7 @@ export default function ProgressScreen() {
         <Calendar scanDays={physiqueRecords.map(record => ({
           date: record.createdAt.split('T')[0],
           image: record.imageUri,
-          score: Math.round(Object.values(record.scores).reduce((sum, score) => sum + score, 0) / Object.values(record.scores).length),
+          score: Math.round(Object.values(record.scores).reduce((sum: number, score: number) => sum + score, 0) / Object.values(record.scores).length),
           recordId: record.id
         }))} onDayPress={handleDayPress} />
 
