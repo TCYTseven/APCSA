@@ -6,9 +6,10 @@ import { Colors } from '../../constants/Colors';
 
 type WelcomeProps = {
   onNext: () => void;
+  onLogin: () => void;
 };
 
-const Welcome = ({ onNext }: WelcomeProps) => {
+const Welcome = ({ onNext, onLogin }: WelcomeProps) => {
   const insets = useSafeAreaInsets();
 
   return (
@@ -41,6 +42,14 @@ const Welcome = ({ onNext }: WelcomeProps) => {
         >
           <Text style={styles.buttonText}>Get Started</Text>
         </TouchableOpacity>
+        
+        {/* Login Link */}
+        <View style={styles.loginPrompt}>
+          <Text style={styles.loginPromptText}>Already have an account? </Text>
+          <TouchableOpacity onPress={onLogin} activeOpacity={0.7}>
+            <Text style={styles.loginLink}>Log In</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </LinearGradient>
   );
@@ -125,6 +134,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 16,
     letterSpacing: 0.5,
+  },
+  loginPrompt: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  loginPromptText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 14,
+    fontWeight: '400',
+  },
+  loginLink: {
+    color: Colors.dark.tint,
+    fontSize: 14,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });
 

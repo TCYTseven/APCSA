@@ -7,6 +7,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import AboutYou from '../../components/onboarding/AboutYou';
 import CreateAccount from '../../components/onboarding/CreateAccount';
 import IdealPhysique from '../../components/onboarding/IdealPhysique';
+import Login from '../../components/onboarding/Login';
 import Welcome from '../../components/onboarding/Welcome';
 
 type UserData = {
@@ -18,7 +19,7 @@ type UserData = {
   password: string;
 }
 
-const steps = ['welcome', 'aboutYou', 'idealPhysique', 'createAccount'];
+const steps = ['welcome', 'aboutYou', 'idealPhysique', 'createAccount', 'login'];
 
 export default function Onboarding() {
   const [currentStep, setCurrentStep] = useState<string>('welcome');
@@ -36,6 +37,14 @@ export default function Onboarding() {
 
   const handleNext = (step: string) => {
     setCurrentStep(step);
+  };
+
+  const handleLogin = () => {
+    setCurrentStep('login');
+  };
+
+  const handleBackToWelcome = () => {
+    setCurrentStep('welcome');
   };
 
   const handleBack = () => {
@@ -91,7 +100,9 @@ export default function Onboarding() {
   const renderStep = () => {
     switch (currentStep) {
       case 'welcome':
-        return <Welcome onNext={() => handleNext('aboutYou')} />;
+        return <Welcome onNext={() => handleNext('aboutYou')} onLogin={handleLogin} />;
+      case 'login':
+        return <Login onBack={handleBackToWelcome} />;
       case 'aboutYou':
         return (
           <AboutYou
@@ -120,7 +131,7 @@ export default function Onboarding() {
           />
         );
       default:
-        return <Welcome onNext={() => handleNext('aboutYou')} />;
+        return <Welcome onNext={() => handleNext('aboutYou')} onLogin={handleLogin} />;
     }
   };
 
