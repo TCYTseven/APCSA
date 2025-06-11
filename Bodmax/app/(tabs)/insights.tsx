@@ -3,12 +3,14 @@ import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useState } from 'react';
 import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import MuscleBodyGraph from '@/components/MuscleBodyGraph';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useAuth } from '@/lib/AuthContext';
 import { dataStore, type MuscleGroupScore } from '@/lib/dataStore';
 
 const { width } = Dimensions.get('window');
@@ -69,20 +71,24 @@ const convertMuscleNameToSlug = (muscleName: string): string => {
   return mapping[muscleName] || muscleName.toLowerCase();
 };
 
-// Function to get color based on score
+// Function to get color based on score with new color scheme
 const getScoreColor = (score: number): string => {
   if (score === 0) return '#666666'; // Gray for no data
-  if (score >= 80) return '#4CD964'; // Green for strengths
-  if (score >= 70) return '#FFD60A'; // Yellow for average
-  return '#FF3B30'; // Red for areas to improve
+  if (score >= 90) return '#4CE05C'; // Bright Green (90-100)
+  if (score >= 80) return '#AEEA00'; // Muted Green-Yellow (80-90)
+  if (score >= 70) return '#FFEB3B'; // Yellow (70-80)
+  if (score >= 60) return '#FF9800'; // Yellow-Orange (60-70)
+  return '#F44336'; // Red (below 60)
 };
 
-// Function to get intensity based on score (1-3 scale for the body highlighter)
+// Function to get intensity based on score (1-5 scale for granular body highlighting)
 const getIntensity = (score: number): number => {
   if (score === 0) return 0; // No highlighting for no data
-  if (score >= 80) return 3; // Highest intensity (green)
-  if (score >= 70) return 2; // Medium intensity (yellow)
-  return 1; // Lowest intensity (red)
+  if (score >= 90) return 5; // Bright Green (90-100)
+  if (score >= 80) return 4; // Muted Green-Yellow (80-90)
+  if (score >= 70) return 3; // Yellow (70-80)
+  if (score >= 60) return 2; // Yellow-Orange (60-70)
+  return 1; // Red (below 60)
 };
 
 // Convert muscle scores to body highlighter format
@@ -95,7 +101,7 @@ const convertToBodyHighlighter = (scores: MuscleGroupScore) => {
     }));
 };
 
-// This mock data is no longer used - actual data is loaded from dataStore
+// All data is loaded from dataStore
 
 // Quick Insight Card Component
 const InsightCard = ({ icon, title, description, color }: { icon: string; title: string; description: string; color: string }) => (
@@ -171,6 +177,9 @@ const MuscleGroupGrid = ({ scores }: { scores: MuscleGroupScore }) => {
 export default function InsightsScreen() {
   const colorScheme = useColorScheme();
   const accentColor = Colors[colorScheme ?? 'dark'].tint;
+  const insets = useSafeAreaInsets();
+  const { user, profile, loading: authLoading, initialized } = useAuth();
+  
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
   const [bodyView, setBodyView] = useState<{ side: 'front' | 'back', gender: 'male' | 'female' }>({
     side: 'front',
@@ -180,31 +189,121 @@ export default function InsightsScreen() {
   // State for real data
   const [currentScores, setCurrentScores] = useState<MuscleGroupScore>({});
   const [latestAdvice, setLatestAdvice] = useState<string>('');
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Load data when screen is focused
-  const loadData = useCallback(async () => {
-    try {
-      const scores = await dataStore.getCurrentScores();
-      setCurrentScores(scores);
-      console.log('📊 Loaded current scores in insights:', scores);
-
-      // Get the latest physique record for advice
-      const userProfile = await dataStore.getUserProfile();
-      if (userProfile) {
-        const latestRecord = await dataStore.getLatestPhysiqueRecord(userProfile.id);
-        if (latestRecord) {
-          setLatestAdvice(latestRecord.advice);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading insights data:', error);
-    }
-  }, []);
-
+  // Load data when screen is focused - but only if not already loaded
   useFocusEffect(
     useCallback(() => {
+      // Don't reload if we already have data and it's not stale
+      if (dataLoaded && !isLoading && Object.keys(currentScores).length > 0) {
+        console.log('💡 Insights data already loaded, skipping reload');
+        return;
+      }
+      
+      console.log('💡 Insights screen focused, loading data...');
+      
+      const loadData = async () => {
+        if (isLoading) {
+          console.log('💡 Already loading, skipping...');
+          return;
+        }
+        
+        setIsLoading(true);
+        try {
+          console.log('💡 Starting data load process...');
+          console.log('🔐 Auth state:', { 
+            userExists: !!user, 
+            profileExists: !!profile, 
+            authLoading, 
+            initialized 
+          });
+          
+          // If auth is not initialized or still loading, wait a bit
+          if (!initialized || authLoading) {
+            console.log('⏳ Auth still initializing, waiting...');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+          
+          // Handle no user case
+          if (!user) {
+            console.log('❌ No authenticated user found in context');
+            setCurrentScores({});
+            setLatestAdvice('Please sign in to view your insights.');
+            return;
+          }
+          
+          // Add timeout wrapper for each step
+          const timeoutPromise = (promise: Promise<any>, name: string, timeoutMs = 8000) => {
+            return Promise.race([
+              promise,
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error(`${name} timed out after ${timeoutMs}ms`)), timeoutMs)
+              )
+            ]);
+          };
+          
+          // Step 1: Load current scores with fallback
+          console.log('💡 Step 1: Loading current scores...');
+          try {
+            const scores = await timeoutPromise(
+              dataStore.getCurrentScores(),
+              'getCurrentScores',
+              5000
+            );
+            setCurrentScores(scores);
+            console.log('📊 Loaded current scores in insights:', Object.keys(scores).length, 'muscle groups');
+          } catch (error) {
+            console.warn('⚠️ getCurrentScores failed:', error);
+            setCurrentScores({});
+          }
+
+          // Step 2: Get the latest physique record for advice
+          const contextProfile = profile || { id: user.id, email: user.email };
+          if (contextProfile?.id) {
+            console.log('💡 Step 2: Loading latest physique record...');
+            try {
+              const latestRecord = await timeoutPromise(
+                dataStore.getLatestPhysiqueRecord(contextProfile.id),
+                'getLatestPhysiqueRecord',
+                8000
+              );
+              if (latestRecord) {
+                setLatestAdvice(latestRecord.advice);
+                console.log('💡 Latest advice loaded successfully');
+              } else {
+                console.log('💡 No latest record found');
+                setLatestAdvice('Take your first physique scan to get personalized advice!');
+              }
+            } catch (error) {
+              console.warn('⚠️ getLatestPhysiqueRecord failed:', error);
+              setLatestAdvice('Take a physique scan to get personalized insights!');
+            }
+          } else {
+            console.log('⚠️ No valid profile ID');
+            setLatestAdvice('Complete your profile and take a scan for insights!');
+          }
+          
+          console.log('✅ Insights data loading completed successfully!');
+          setDataLoaded(true);
+        } catch (error) {
+          console.error('❌ Error loading insights data:', error);
+          console.error('❌ Error details:', {
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack?.substring(0, 500) : undefined,
+            name: error instanceof Error ? error.name : 'Unknown'
+          });
+          
+          // Set fallback data to prevent infinite loading
+          setCurrentScores({});
+          setLatestAdvice('Unable to load data. Please try again later.');
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      
       loadData();
-    }, [loadData])
+    }, [dataLoaded, isLoading, user?.id, initialized]) // Reduced dependencies
   );
 
   // Calculate overall insights using mathematical formula
@@ -265,7 +364,7 @@ export default function InsightsScreen() {
             side={bodyView.side}
             onBodyPartPress={handleBodyPartPress}
             scale={1.4}
-            colors={['#FF3B30', '#FFD60A', '#4CD964']}
+            colors={['#F44336', '#FF9800', '#FFEB3B', '#AEEA00', '#4CE05C']}
             border="rgba(255,255,255,0.3)"
           />
           

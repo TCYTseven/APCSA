@@ -97,25 +97,38 @@ class DataStore {
         // If the image_url is a Supabase storage URL, create a signed URL
         if (record.image_url && record.image_url.includes('/storage/v1/object/')) {
           try {
-            // Extract the file path more robustly
-            let path: string | null = null;
-            
-            // Handle both public and signed URLs
-            if (record.image_url.includes('/physique-images/')) {
-              const parts = record.image_url.split('/physique-images/');
-              if (parts.length > 1) {
-                path = parts[1].split('?')[0]; // Remove any existing query parameters
+            // Add timeout to signed URL generation
+            const signedUrlPromise = (async () => {
+              // Extract the file path more robustly
+              let path: string | null = null;
+              
+              // Handle both public and signed URLs
+              if (record.image_url.includes('/physique-images/')) {
+                const parts = record.image_url.split('/physique-images/');
+                if (parts.length > 1) {
+                  path = parts[1].split('?')[0]; // Remove any existing query parameters
+                }
               }
-            }
+              
+              if (path) {
+                console.log('🔗 Creating signed URL for path:', path);
+                const { storageService } = await import('./storage');
+                const signedUrl = await storageService.getSignedUrl(path, 3600); // 1 hour expiry
+                console.log('✅ Signed URL created successfully');
+                return signedUrl;
+              } else {
+                console.warn('⚠️ Could not extract path from image URL:', record.image_url);
+                return record.image_url;
+              }
+            })();
             
-            if (path) {
-              console.log('🔗 Creating signed URL for path:', path);
-              const { storageService } = await import('./storage');
-              imageUri = await storageService.getSignedUrl(path, 3600); // 1 hour expiry
-              console.log('✅ Signed URL created successfully');
-            } else {
-              console.warn('⚠️ Could not extract path from image URL:', record.image_url);
-            }
+            // Race against timeout
+            imageUri = await Promise.race([
+              signedUrlPromise,
+              new Promise<string>((_, reject) => 
+                setTimeout(() => reject(new Error('Signed URL generation timeout')), 5000)
+              )
+            ]);
           } catch (error) {
             console.error('❌ Failed to create signed URL:', error);
             console.log('🔄 Falling back to original URL:', record.image_url);

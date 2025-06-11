@@ -9,17 +9,17 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useAuth } from '@/lib/AuthContext';
 import { dataStore, type LegacyPhysiqueRecord, type MuscleGroupScore } from '@/lib/dataStore';
 
-// Helper function to get color based on score
+// Helper function to get color based on score with new color scheme
 const getScoreColor = (score: number): string => {
-  if (score >= 90) return '#4CD964'; // Green for high scores
-  if (score >= 75) return '#73D945'; // Green-yellow
-  if (score >= 65) return '#A0D636'; // Yellow-green
-  if (score >= 55) return '#FFD60A'; // Yellow
-  if (score >= 45) return '#FFA500'; // Orange
-  if (score >= 35) return '#FF7643'; // Orange-red
-  return '#FF3B30'; // Red for low scores
+  if (score === 0) return '#666666'; // Gray for no data
+  if (score >= 90) return '#4CE05C'; // Bright Green (90-100)
+  if (score >= 80) return '#AEEA00'; // Muted Green-Yellow (80-90)
+  if (score >= 70) return '#FFEB3B'; // Yellow (70-80)
+  if (score >= 60) return '#FF9800'; // Yellow-Orange (60-70)
+  return '#F44336'; // Red (below 60)
 };
 
 // Helper function to format date as mm/dd/yy
@@ -31,16 +31,7 @@ const formatDate = (dateString: string): string => {
   return `${month}/${day}/${year}`;
 };
 
-// Mock data for progress chart - converted to 100-based scale
-const mockData = [
-  { date: 'Jan 15', score: 72 },
-  { date: 'Feb 3', score: 74 },
-  { date: 'Feb 24', score: 78 },
-  { date: 'Mar 12', score: 80 },
-  { date: 'Apr 5', score: 83 },
-  { date: 'Apr 20', score: 79 },
-  { date: 'May 8', score: 85 },
-];
+// Real data is loaded from dataStore
 
 // Types for calendar and modal functionality
 type ScanDay = { date: string; image: string; score: number; recordId: string };
@@ -394,12 +385,15 @@ export default function ProgressScreen() {
   const colorScheme = useColorScheme();
   const accentColor = Colors[colorScheme ?? 'dark'].tint;
   const insets = useSafeAreaInsets();
+  const { user, profile, loading: authLoading, initialized } = useAuth();
   
   // State for real data
   const [progressData, setProgressData] = useState<Array<{ date: string; score: number }>>([]);
   const [currentScores, setCurrentScores] = useState<MuscleGroupScore>({});
   const [physiqueRecords, setPhysiqueRecords] = useState<LegacyPhysiqueRecord[]>([]);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   // Calculate recent improvement
   const latestScore = progressData.length > 0 ? Math.round(progressData[progressData.length - 1].score) : 0;
@@ -414,40 +408,138 @@ export default function ProgressScreen() {
   const explosionRef = useRef<any>(null);
   const [modalImageLayout, setModalImageLayout] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
 
-  // Load data when screen is focused
-  const loadData = useCallback(async () => {
-    try {
-      console.log('📊 Loading progress data...');
-      const profile = await dataStore.getUserProfile();
-      setUserProfile(profile);
-      console.log('👤 User profile loaded:', profile?.email);
-      
-      if (profile) {
-        const records = await dataStore.getPhysiqueRecords(profile.id);
-        console.log('📸 Physique records loaded:', records.length, 'records');
-        records.forEach((record, index) => {
-          console.log(`📸 Record ${index + 1}:`, record.createdAt.split('T')[0], 'Muscle groups:', Object.keys(record.scores).length);
-        });
-        setPhysiqueRecords(records);
-        
-        const progress = await dataStore.getProgressData(profile.id);
-        console.log('📈 Progress data loaded:', progress.length, 'data points');
-        setProgressData(progress);
-      }
-      
-      const scores = await dataStore.getCurrentScores();
-      console.log('🎯 Current scores loaded:', Object.keys(scores).length, 'muscle groups');
-      setCurrentScores(scores);
-    } catch (error) {
-      console.error('❌ Error loading data:', error);
-    }
-  }, []);
-
+  // Load data when screen is focused - but only if not already loaded
   useFocusEffect(
     useCallback(() => {
+      // Don't reload if we already have data and it's not stale
+      if (dataLoaded && !isLoading && (progressData.length > 0 || Object.keys(currentScores).length > 0)) {
+        console.log('📊 Progress data already loaded, skipping reload');
+        return;
+      }
+      
       console.log('📊 Progress screen focused, loading data...');
+      
+      const loadData = async () => {
+        if (isLoading) {
+          console.log('📊 Already loading, skipping...');
+          return;
+        }
+        
+        setIsLoading(true);
+        try {
+          console.log('📊 Starting data load process...');
+          console.log('🔐 Auth state:', { 
+            userExists: !!user, 
+            profileExists: !!profile, 
+            authLoading, 
+            initialized 
+          });
+          
+          // If auth is not initialized or still loading, wait a bit
+          if (!initialized || authLoading) {
+            console.log('⏳ Auth still initializing, waiting...');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+          
+          // Use AuthContext data instead of calling auth service directly
+          if (!user) {
+            console.log('❌ No authenticated user found in context');
+            // Set empty states instead of mock data
+            setProgressData([]);
+            setCurrentScores({});
+            setPhysiqueRecords([]);
+            setUserProfile(null);
+            return;
+          }
+          
+          // Add timeout wrapper for each step
+          const timeoutPromise = (promise: Promise<any>, name: string, timeoutMs = 8000) => {
+            return Promise.race([
+              promise,
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error(`${name} timed out after ${timeoutMs}ms`)), timeoutMs)
+              )
+            ]);
+          };
+          
+          // Step 1: Use profile from AuthContext
+          console.log('📊 Step 1: Using profile from AuthContext...');
+          const contextProfile = profile || { id: user.id, email: user.email };
+          setUserProfile(contextProfile);
+          console.log('👤 User profile from context:', contextProfile?.email);
+          
+          // Step 2: Load current scores with fallback
+          console.log('📊 Step 2: Loading current scores...');
+          try {
+            const scores = await timeoutPromise(
+              dataStore.getCurrentScores(),
+              'getCurrentScores',
+              5000
+            );
+            console.log('🎯 Current scores loaded:', Object.keys(scores).length, 'muscle groups');
+            setCurrentScores(scores);
+          } catch (error) {
+            console.warn('⚠️ getCurrentScores failed:', error);
+            setCurrentScores({});
+          }
+          
+          // Step 3: Load physique records with fallback
+          if (contextProfile?.id) {
+            console.log('📊 Step 3: Loading physique records...');
+            try {
+              const records = await timeoutPromise(
+                dataStore.getPhysiqueRecords(contextProfile.id),
+                'getPhysiqueRecords',
+                10000
+              );
+        console.log('📸 Physique records loaded:', records.length, 'records');
+        setPhysiqueRecords(records);
+            } catch (error) {
+              console.warn('⚠️ getPhysiqueRecords failed:', error);
+              setPhysiqueRecords([]);
+            }
+            
+            console.log('📊 Step 4: Loading progress data...');
+            try {
+              const progress = await timeoutPromise(
+                dataStore.getProgressData(contextProfile.id),
+                'getProgressData',
+                8000
+              );
+        console.log('📈 Progress data loaded:', progress.length, 'data points');
+        setProgressData(progress);
+            } catch (error) {
+              console.warn('⚠️ getProgressData failed:', error);
+              setProgressData([]);
+            }
+          } else {
+            console.log('⚠️ No valid profile ID');
+            setPhysiqueRecords([]);
+            setProgressData([]);
+          }
+          
+          console.log('✅ Data loading completed successfully!');
+          setDataLoaded(true);
+    } catch (error) {
+      console.error('❌ Error loading data:', error);
+          console.error('❌ Error details:', {
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack?.substring(0, 500) : undefined,
+            name: error instanceof Error ? error.name : 'Unknown'
+          });
+          
+          // Set empty states on error - no mock data
+          setUserProfile(null);
+          setPhysiqueRecords([]);
+          setProgressData([]);
+          setCurrentScores({});
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      
       loadData();
-    }, [loadData])
+    }, [dataLoaded, isLoading, user?.id, initialized]) // Reduced dependencies
   );
 
   // Handle day press with support for multiple images per day

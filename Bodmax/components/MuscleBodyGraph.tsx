@@ -20,7 +20,7 @@ const MuscleBodyGraph: React.FC<MuscleBodyGraphProps> = ({
   side = 'front',
   onBodyPartPress,
   scale = 1.5,
-  colors = ['#FF3B30', '#FFD60A', '#4CD964'], // Red, Yellow, Green
+  colors = ['#F44336', '#FF9800', '#FFEB3B', '#AEEA00', '#4CE05C'], // Red (<60), Orange (60-70), Yellow (70-80), Muted Green-Yellow (80-90), Bright Green (90+)
   border = 'rgba(255,255,255,0.3)',
 }) => {
   const handleBodyPartPress = (bodyPart: ExtendedBodyPart, pressedSide?: 'left' | 'right') => {

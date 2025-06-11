@@ -13,13 +13,12 @@ import { MuscleGroupScore } from '@/lib/database.types';
 import { supabaseDataStore } from '@/lib/supabaseDataStore';
 
 const getScoreColor = (score: number): string => {
-  if (score >= 90) return '#4CD964'; 
-  if (score >= 75) return '#73D945'; 
-  if (score >= 65) return '#A0D636'; 
-  if (score >= 55) return '#FFD60A'; 
-  if (score >= 45) return '#FFA500'; 
-  if (score >= 35) return '#FF7643'; 
-  return '#FF3B30'; 
+  if (score === 0) return '#666666'; // Gray for no data
+  if (score >= 90) return '#4CE05C'; // Bright Green (90-100)
+  if (score >= 80) return '#AEEA00'; // Muted Green-Yellow (80-90)
+  if (score >= 70) return '#FFEB3B'; // Yellow (70-80)
+  if (score >= 60) return '#FF9800'; // Yellow-Orange (60-70)
+  return '#F44336'; // Red (below 60)
 };
 
 const RatingBar = ({ name, rating }: { name: string; rating: number }) => {
@@ -119,22 +118,50 @@ export default function ProfileScreen() {
   };
 
   // Load best scores from Supabase
-  const loadBestScores = useCallback(async () => {
-    try {
-      setLoading(true);
-      const scores = await supabaseDataStore.getBestScores();
-      setBestScores(scores);
-    } catch (error) {
-      console.error('Failed to load best scores:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useFocusEffect(
     useCallback(() => {
+      console.log('👤 Profile screen focused, loading data...');
+      
+      const loadBestScores = async () => {
+        try {
+          console.log('👤 Starting profile data load...');
+          setLoading(true);
+          
+          // Add timeout wrapper
+          const timeoutPromise = (promise: Promise<any>, name: string, timeoutMs = 10000) => {
+            return Promise.race([
+              promise,
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error(`${name} timed out after ${timeoutMs}ms`)), timeoutMs)
+              )
+            ]);
+          };
+          
+          console.log('👤 Loading best scores...');
+          const scores = await timeoutPromise(
+            supabaseDataStore.getBestScores(),
+            'getBestScores',
+            10000
+          );
+          setBestScores(scores);
+          console.log('✅ Profile data loading completed successfully!');
+        } catch (error) {
+          console.error('❌ Failed to load best scores:', error);
+          console.error('❌ Error details:', {
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack?.substring(0, 500) : undefined,
+            name: error instanceof Error ? error.name : 'Unknown'
+          });
+          
+          // Set fallback data to prevent infinite loading
+          setBestScores({});
+        } finally {
+          setLoading(false);
+        }
+      };
+      
       loadBestScores();
-    }, [loadBestScores])
+    }, []) // Empty deps - always run fresh when focused
   );
 
   const overallScore = calculateOverallScore(bestScores);
