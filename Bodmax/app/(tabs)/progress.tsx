@@ -395,8 +395,44 @@ export default function ProgressScreen() {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
-  // Calculate recent improvement
-  const latestScore = progressData.length > 0 ? Math.round(progressData[progressData.length - 1].score) : 0;
+  // Function to calculate overall score using same method as insights page
+  const calculateOverallScore = (scores: MuscleGroupScore): number => {
+    const validScores = Object.values(scores).filter(score => score > 0);
+    if (validScores.length === 0) return 0;
+    
+    // Use weighted average with emphasis on major muscle groups (same as insights)
+    const weights = {
+      'Trapezius': 1.0,
+      'Triceps': 1.0,
+      'Forearm': 0.7,
+      'Calves': 0.8,
+      'Deltoids': 1.1,
+      'Chest': 1.2,
+      'Biceps': 1.0,
+      'Abs': 1.3,
+      'Quadriceps': 1.2,
+      'Upper back': 1.1,
+      'Lower back': 1.0,
+      'Hamstring': 1.0,
+      'Gluteal': 1.0,
+    };
+
+    let totalWeightedScore = 0;
+    let totalWeight = 0;
+
+    Object.entries(scores).forEach(([muscle, score]) => {
+      if (score > 0) {
+        const weight = weights[muscle as keyof typeof weights] || 1.0;
+        totalWeightedScore += score * weight;
+        totalWeight += weight;
+      }
+    });
+
+    return totalWeight > 0 ? Math.round(totalWeightedScore / totalWeight) : 0;
+  };
+
+  // Calculate recent improvement using current scores (same as insights page)
+  const latestScore = calculateOverallScore(currentScores);
   const previousScore = progressData.length > 1 ? Math.round(progressData[progressData.length - 2].score) : 0;
   const improvement = latestScore - previousScore;
   const streakCount = physiqueRecords.length; // Number of scans taken
