@@ -21,6 +21,7 @@ interface AuthContextType {
   signOut: () => Promise<void>
   updateProfile: (updates: Partial<Omit<UserProfile, 'id' | 'created_at'>>) => Promise<void>
   refreshProfile: () => Promise<void>
+  debugAuthState: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -31,11 +32,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [initialized, setInitialized] = useState(false)
+  const [isInitializing, setIsInitializing] = useState(false)
 
   useEffect(() => {
     let mounted = true
+    let authStateListener: any = null
     
     const initializeAuth = async () => {
+      if (isInitializing) {
+        console.log('🔄 Auth already initializing, skipping...')
+        return
+      }
+      
+      setIsInitializing(true)
       try {
         console.log('🔐 Initializing auth context...')
         
@@ -43,11 +52,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const initialSession = await authService.getSession()
         
         if (mounted) {
+          console.log('📱 Setting session and user:', !!initialSession, !!initialSession?.user)
           setSession(initialSession)
           setUser(initialSession?.user ?? null)
           
           // Load profile if we have a user
           if (initialSession?.user) {
+            console.log('👤 Loading user profile for:', initialSession.user.email)
             await loadUserProfile()
           }
           
@@ -61,48 +72,76 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setInitialized(true)
           setLoading(false)
         }
+      } finally {
+        setIsInitializing(false)
       }
     }
 
-    // Initialize auth state
-    initializeAuth()
+    // Initialize auth state FIRST
+    initializeAuth().then(() => {
+      if (!mounted) return
+      
+      // THEN set up auth state listener (after initialization)
+      console.log('🎧 Setting up auth state listener...')
+      const { data: { subscription } } = authService.onAuthStateChange(
+        async (event, session) => {
+          if (!mounted) return
+          
+          console.log('🔐 Auth state change:', event, session?.user?.email || 'no-user')
+          console.log('📊 Current context state before change:', { 
+            hasCurrentSession: !!session, 
+            hasCurrentUser: !!user, 
+            hasCurrentProfile: !!profile,
+            loading,
+            initialized 
+          })
+          
+          // Update session and user state immediately
+          setSession(session)
+          setUser(session?.user ?? null)
 
-    // Set up auth state listener
-    const { data: { subscription } } = authService.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return
-        
-        console.log('🔐 Auth state change:', event, session?.user?.id)
-        setSession(session)
-        setUser(session?.user ?? null)
+          if (session?.user) {
+            console.log('👤 User signed in, loading profile for:', session.user.email)
+            // Load user profile when user signs in
+            await loadUserProfile()
+          } else {
+            console.log('🚪 User signed out, clearing profile')
+            // Clear profile when user signs out
+            setProfile(null)
+          }
 
-        if (session?.user) {
-          // Load user profile when user signs in
-          await loadUserProfile()
-        } else {
-          // Clear profile when user signs out
-          setProfile(null)
-        }
-
-        // Only set loading to false after initialization is complete
-        if (initialized) {
+          // Always set loading to false and initialized to true after auth state change
+          console.log('✅ Auth state change complete, setting loading: false, initialized: true')
           setLoading(false)
+          setInitialized(true)
         }
-      }
-    )
+      )
+      
+      authStateListener = subscription
+    })
 
     return () => {
       mounted = false
-      subscription.unsubscribe()
+      if (authStateListener) {
+        authStateListener.unsubscribe()
+      }
     }
   }, [])
 
   const loadUserProfile = async () => {
     try {
+      console.log('📱 Loading user profile...')
       const userProfile = await authService.getUserProfile()
-      setProfile(userProfile)
+      if (userProfile) {
+        console.log('✅ User profile loaded successfully:', userProfile.email)
+        setProfile(userProfile)
+      } else {
+        console.log('⚠️ No user profile found')
+        setProfile(null)
+      }
     } catch (error) {
       console.error('❌ Error loading user profile:', error)
+      setProfile(null)
     }
   }
 
@@ -204,6 +243,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await loadUserProfile()
   }
 
+  const debugAuthState = () => {
+    console.log('🔍 AUTH DEBUG STATE:', {
+      session: !!session,
+      sessionId: session?.user?.id,
+      sessionEmail: session?.user?.email,
+      user: !!user,
+      userId: user?.id,
+      userEmail: user?.email,
+      profile: !!profile,
+      profileEmail: profile?.email,
+      loading,
+      initialized,
+      isInitializing
+    })
+  }
+
   const value: AuthContextType = {
     session,
     user,
@@ -215,6 +270,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     updateProfile,
     refreshProfile,
+    debugAuthState,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

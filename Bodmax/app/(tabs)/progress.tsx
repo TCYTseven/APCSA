@@ -385,7 +385,18 @@ export default function ProgressScreen() {
   const colorScheme = useColorScheme();
   const accentColor = Colors[colorScheme ?? 'dark'].tint;
   const insets = useSafeAreaInsets();
-  const { user, profile, loading: authLoading, initialized } = useAuth();
+  const { user, profile, loading: authLoading, initialized, debugAuthState } = useAuth();
+  
+  // Debug auth state on every render
+  React.useEffect(() => {
+    console.log('📊 PROGRESS PAGE - Auth state:', {
+      userExists: !!user,
+      profileExists: !!profile,
+      authLoading,
+      initialized,
+      userEmail: user?.email
+    });
+  });
   
   // State for real data
   const [progressData, setProgressData] = useState<Array<{ date: string; score: number }>>([]);
@@ -394,6 +405,7 @@ export default function ProgressScreen() {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [lastLoadTime, setLastLoadTime] = useState<number>(0);
   
   // Function to calculate overall score using same method as insights page
   const calculateOverallScore = (scores: MuscleGroupScore): number => {
@@ -447,9 +459,15 @@ export default function ProgressScreen() {
   // Load data when screen is focused - but only if not already loaded
   useFocusEffect(
     useCallback(() => {
-      // Don't reload if we already have data and it's not stale
+      // Don't reload if we already have data (no time expiration unless explicitly refreshed)
       if (dataLoaded && !isLoading && (progressData.length > 0 || Object.keys(currentScores).length > 0)) {
         console.log('📊 Progress data already loaded, skipping reload');
+        return;
+      }
+      
+      // Don't load if currently loading
+      if (isLoading) {
+        console.log('📊 Already loading progress data, skipping...');
         return;
       }
       
@@ -510,7 +528,7 @@ export default function ProgressScreen() {
             const scores = await timeoutPromise(
               dataStore.getCurrentScores(),
               'getCurrentScores',
-              5000
+              15000
             );
             console.log('🎯 Current scores loaded:', Object.keys(scores).length, 'muscle groups');
             setCurrentScores(scores);
@@ -556,6 +574,7 @@ export default function ProgressScreen() {
           
           console.log('✅ Data loading completed successfully!');
           setDataLoaded(true);
+          setLastLoadTime(Date.now());
     } catch (error) {
       console.error('❌ Error loading data:', error);
           console.error('❌ Error details:', {
@@ -575,7 +594,7 @@ export default function ProgressScreen() {
       };
       
       loadData();
-    }, [dataLoaded, isLoading, user?.id, initialized]) // Reduced dependencies
+    }, [user?.id, initialized, authLoading]) // Re-run when auth state actually changes
   );
 
   // Handle day press with support for multiple images per day

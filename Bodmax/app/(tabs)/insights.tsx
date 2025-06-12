@@ -178,7 +178,18 @@ export default function InsightsScreen() {
   const colorScheme = useColorScheme();
   const accentColor = Colors[colorScheme ?? 'dark'].tint;
   const insets = useSafeAreaInsets();
-  const { user, profile, loading: authLoading, initialized } = useAuth();
+  const { user, profile, loading: authLoading, initialized, debugAuthState } = useAuth();
+  
+  // Debug auth state on every render
+  React.useEffect(() => {
+    console.log('🔍 INSIGHTS PAGE - Auth state:', {
+      userExists: !!user,
+      profileExists: !!profile,
+      authLoading,
+      initialized,
+      userEmail: user?.email
+    });
+  });
   
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
   const [bodyView, setBodyView] = useState<{ side: 'front' | 'back', gender: 'male' | 'female' }>({
@@ -191,13 +202,20 @@ export default function InsightsScreen() {
   const [latestAdvice, setLatestAdvice] = useState<string>('');
   const [dataLoaded, setDataLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [lastLoadTime, setLastLoadTime] = useState<number>(0);
 
   // Load data when screen is focused - but only if not already loaded
   useFocusEffect(
     useCallback(() => {
-      // Don't reload if we already have data and it's not stale
+      // Don't reload if we already have data (no time expiration unless explicitly refreshed)
       if (dataLoaded && !isLoading && Object.keys(currentScores).length > 0) {
         console.log('💡 Insights data already loaded, skipping reload');
+        return;
+      }
+      
+      // Don't load if currently loading
+      if (isLoading) {
+        console.log('💡 Already loading insights data, skipping...');
         return;
       }
       
@@ -225,7 +243,7 @@ export default function InsightsScreen() {
             await new Promise(resolve => setTimeout(resolve, 1000));
           }
           
-          // Handle no user case
+          // Use AuthContext data instead of calling auth service directly
           if (!user) {
             console.log('❌ No authenticated user found in context');
             setCurrentScores({});
@@ -243,25 +261,29 @@ export default function InsightsScreen() {
             ]);
           };
           
-          // Step 1: Load current scores with fallback
-          console.log('💡 Step 1: Loading current scores...');
+          // Step 1: Use profile from AuthContext
+          console.log('💡 Step 1: Using profile from AuthContext...');
+          const contextProfile = profile || { id: user.id, email: user.email };
+          console.log('👤 User profile from context:', contextProfile?.email);
+          
+          // Step 2: Load current scores with fallback
+          console.log('💡 Step 2: Loading current scores...');
           try {
             const scores = await timeoutPromise(
               dataStore.getCurrentScores(),
               'getCurrentScores',
-              5000
+              15000
             );
+            console.log('🎯 Current scores loaded:', Object.keys(scores).length, 'muscle groups');
             setCurrentScores(scores);
-            console.log('📊 Loaded current scores in insights:', Object.keys(scores).length, 'muscle groups');
           } catch (error) {
             console.warn('⚠️ getCurrentScores failed:', error);
             setCurrentScores({});
           }
-
-          // Step 2: Get the latest physique record for advice
-          const contextProfile = profile || { id: user.id, email: user.email };
+          
+          // Step 3: Get the latest physique record for advice
           if (contextProfile?.id) {
-            console.log('💡 Step 2: Loading latest physique record...');
+            console.log('💡 Step 3: Loading latest physique record...');
             try {
               const latestRecord = await timeoutPromise(
                 dataStore.getLatestPhysiqueRecord(contextProfile.id),
@@ -286,6 +308,7 @@ export default function InsightsScreen() {
           
           console.log('✅ Insights data loading completed successfully!');
           setDataLoaded(true);
+          setLastLoadTime(Date.now());
         } catch (error) {
           console.error('❌ Error loading insights data:', error);
           console.error('❌ Error details:', {
@@ -294,7 +317,7 @@ export default function InsightsScreen() {
             name: error instanceof Error ? error.name : 'Unknown'
           });
           
-          // Set fallback data to prevent infinite loading
+          // Set empty states on error - no mock data
           setCurrentScores({});
           setLatestAdvice('Unable to load data. Please try again later.');
         } finally {
@@ -303,7 +326,7 @@ export default function InsightsScreen() {
       };
       
       loadData();
-    }, [dataLoaded, isLoading, user?.id, initialized]) // Reduced dependencies
+    }, []) // No dependencies - only load on focus, not on state changes
   );
 
   // Calculate overall insights using mathematical formula
