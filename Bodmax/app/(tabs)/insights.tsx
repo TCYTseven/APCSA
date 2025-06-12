@@ -446,7 +446,7 @@ export default function InsightsScreen() {
           <InsightCard
             icon="analytics"
             title="AI Recommendation"
-            description="Focus on leg development for balanced physique"
+            description={latestAdvice || "Take a physique scan to get personalized AI recommendations!"}
             color={accentColor}
           />
         </View>
