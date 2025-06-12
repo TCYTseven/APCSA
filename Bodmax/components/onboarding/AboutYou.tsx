@@ -132,7 +132,7 @@ const AboutYou = ({ onNext, onBack, onUpdateData, userData }: AboutYouProps) => 
           <Text style={styles.sectionTitle}>Weight</Text>
           <TextInput
             style={[styles.input, errors.weight && styles.inputError]}
-            placeholder="Weight in lbs"
+            placeholder="Enter weight (lbs)"
             placeholderTextColor={Colors.dark.icon}
             value={weight}
             onChangeText={handleWeightChange}

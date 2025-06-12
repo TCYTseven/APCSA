@@ -1,5 +1,6 @@
 import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
 import "@/global.css";
+import { AuthProvider } from "@/lib/AuthContext";
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
@@ -22,16 +23,18 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <GluestackUIProvider mode="light">
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack initialRouteName="(auth)/onboarding">
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="(auth)/onboarding" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" />
-        </Stack>
-          <StatusBar style="light" backgroundColor="transparent" translucent />
-        </ThemeProvider>
-      </GluestackUIProvider>
+      <AuthProvider>
+        <GluestackUIProvider mode="light">
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <Stack initialRouteName="(auth)/onboarding">
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="(auth)/onboarding" options={{ headerShown: false }} />
+            <Stack.Screen name="+not-found" />
+          </Stack>
+            <StatusBar style="light" backgroundColor="transparent" translucent />
+          </ThemeProvider>
+        </GluestackUIProvider>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }

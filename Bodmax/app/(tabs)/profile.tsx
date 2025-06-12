@@ -1,5 +1,6 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { Image } from 'expo-image';
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -7,33 +8,17 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useAuth } from '@/lib/AuthContext';
+import { MuscleGroupScore } from '@/lib/database.types';
+import { supabaseDataStore } from '@/lib/supabaseDataStore';
 
 const getScoreColor = (score: number): string => {
-  if (score >= 90) return '#4CD964'; 
-  if (score >= 75) return '#73D945'; 
-  if (score >= 65) return '#A0D636'; 
-  if (score >= 55) return '#FFD60A'; 
-  if (score >= 45) return '#FFA500'; 
-  if (score >= 35) return '#FF7643'; 
-  return '#FF3B30'; 
-};
-
-const userData = {
-  name: 'Alex Johnson',
-  email: 'alex.johnson@example.com',
-  physique: {
-    overall: 78,
-    ratings: [
-      { name: 'Chest', rating: 82 },
-      { name: 'Legs', rating: 65 },
-      { name: 'Shoulders', rating: 76 },
-      { name: 'Biceps', rating: 84 },
-      { name: 'Triceps', rating: 79 },
-      { name: 'Back', rating: 73 },
-    ],
-    type: 'Toned',
-    streak: 12,
-  },
+  if (score === 0) return '#666666'; // Gray for no data
+  if (score >= 90) return '#4CE05C'; // Bright Green (90-100)
+  if (score >= 80) return '#AEEA00'; // Muted Green-Yellow (80-90)
+  if (score >= 70) return '#FFEB3B'; // Yellow (70-80)
+  if (score >= 60) return '#FF9800'; // Yellow-Orange (60-70)
+  return '#F44336'; // Red (below 60)
 };
 
 const RatingBar = ({ name, rating }: { name: string; rating: number }) => {
@@ -43,13 +28,13 @@ const RatingBar = ({ name, rating }: { name: string; rating: number }) => {
     <View style={styles.ratingBarContainer}>
       <View style={styles.ratingBarHeader}>
         <ThemedText style={styles.ratingBarName}>{name}</ThemedText>
-        <ThemedText style={[styles.ratingValue, { color: scoreColor }]}>{rating}</ThemedText>
+        <ThemedText style={[styles.ratingValue, { color: scoreColor }]}>{rating || 0}</ThemedText>
       </View>
       <View style={styles.ratingBarBg}>
         <View 
           style={[
             styles.ratingBarFill, 
-            { width: `${rating}%`, backgroundColor: scoreColor }
+            { width: `${rating || 0}%`, backgroundColor: scoreColor }
           ]} 
         />
       </View>
@@ -71,8 +56,123 @@ export default function ProfileScreen() {
   const accentColor = Colors[colorScheme ?? 'dark'].tint;
   const insets = useSafeAreaInsets();
   
-  const [userPhysique] = useState(userData.physique);
-  const overallScoreColor = getScoreColor(userPhysique.overall);
+  const { profile, signOut } = useAuth();
+  const [bestScores, setBestScores] = useState<MuscleGroupScore>({});
+  const [loading, setLoading] = useState(true);
+
+  // Calculate overall score from best scores
+  const calculateOverallScore = (scores: MuscleGroupScore): number => {
+    const validScores = Object.values(scores).filter(score => score > 0);
+    if (validScores.length === 0) return 0;
+    
+    // Use weighted average with emphasis on major muscle groups
+    const weights = {
+      'Trapezius': 1.0,
+      'Triceps': 1.0,
+      'Forearm': 0.7,
+      'Calves': 0.8,
+      'Deltoids': 1.1,
+      'Chest': 1.2,
+      'Biceps': 1.0,
+      'Abs': 1.3,
+      'Quadriceps': 1.2,
+      'Upper back': 1.1,
+      'Lower back': 1.0,
+      'Hamstring': 1.0,
+      'Gluteal': 1.0,
+    };
+
+    let totalWeightedScore = 0;
+    let totalWeight = 0;
+
+    Object.entries(scores).forEach(([muscle, score]) => {
+      if (score > 0) {
+        const weight = weights[muscle as keyof typeof weights] || 1.0;
+        totalWeightedScore += score * weight;
+        totalWeight += weight;
+      }
+    });
+
+    return totalWeight > 0 ? Math.round(totalWeightedScore / totalWeight) : 0;
+  };
+
+  // Convert muscle group names to display names
+  const getDisplayName = (muscleGroup: string): string => {
+    const nameMap: { [key: string]: string } = {
+      'Deltoids': 'Shoulders',
+      'Upper back': 'Back',
+      'Lower back': 'Lower Back',
+      'Quadriceps': 'Legs',
+      'Gluteal': 'Glutes',
+    };
+    return nameMap[muscleGroup] || muscleGroup;
+  };
+
+  // Get display physique type based on overall score
+  const getPhysiqueType = (score: number): string => {
+    if (score >= 85) return 'Elite';
+    if (score >= 75) return 'Advanced';
+    if (score >= 65) return 'Intermediate';
+    if (score >= 50) return 'Beginner';
+    return 'Starting';
+  };
+
+  // Load best scores from Supabase
+  useFocusEffect(
+    useCallback(() => {
+      console.log('👤 Profile screen focused, loading data...');
+      
+      const loadBestScores = async () => {
+        try {
+          console.log('👤 Starting profile data load...');
+          setLoading(true);
+          
+          // Add timeout wrapper
+          const timeoutPromise = (promise: Promise<any>, name: string, timeoutMs = 10000) => {
+            return Promise.race([
+              promise,
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error(`${name} timed out after ${timeoutMs}ms`)), timeoutMs)
+              )
+            ]);
+          };
+          
+          console.log('👤 Loading best scores...');
+          const scores = await timeoutPromise(
+            supabaseDataStore.getBestScores(),
+            'getBestScores',
+            10000
+          );
+          setBestScores(scores);
+          console.log('✅ Profile data loading completed successfully!');
+        } catch (error) {
+          console.error('❌ Failed to load best scores:', error);
+          console.error('❌ Error details:', {
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack?.substring(0, 500) : undefined,
+            name: error instanceof Error ? error.name : 'Unknown'
+          });
+          
+          // Set fallback data to prevent infinite loading
+          setBestScores({});
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      loadBestScores();
+    }, []) // Empty deps - always run fresh when focused
+  );
+
+  const overallScore = calculateOverallScore(bestScores);
+  const overallScoreColor = getScoreColor(overallScore);
+  const physiqueType = getPhysiqueType(overallScore);
+
+  // Filter and sort muscle groups for display (show only those with scores > 0)
+  const displayedMuscleGroups = Object.entries(bestScores)
+    .filter(([_, score]) => score > 0)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(0, 6); // Show top 6 muscle groups
 
   const handleLogout = () => {
     Alert.alert(
@@ -82,8 +182,12 @@ export default function ProfileScreen() {
         { text: "Cancel", style: "cancel" },
         { 
           text: "Logout", 
-          onPress: () => {
-            Alert.alert("Logged Out", "You have been logged out successfully.");
+          onPress: async () => {
+            try {
+              await signOut();
+            } catch (error) {
+              console.error('Logout error:', error);
+            }
           }
         }
       ]
@@ -97,6 +201,16 @@ export default function ProfileScreen() {
   const handleSettings = () => {
     Alert.alert("Settings", "This would open app settings.");
   };
+
+  if (loading) {
+    return (
+      <ThemedView style={[styles.container, { paddingTop: insets.top + 20, paddingHorizontal: 24 }]}>
+        <View style={styles.loadingContainer}>
+          <ThemedText>Loading your all-time highs...</ThemedText>
+        </View>
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={[styles.container, {
@@ -115,33 +229,48 @@ export default function ProfileScreen() {
             style={styles.profileImage}
             contentFit="cover"
           />
-          <ThemedText type="title" style={styles.userName}>{userData.name}</ThemedText>
-          <ThemedText style={styles.userEmail}>{userData.email}</ThemedText>
+          <ThemedText type="title" style={styles.userName}>
+            {profile?.email?.split('@')[0] || 'User'}
+          </ThemedText>
+          <ThemedText style={styles.userEmail}>{profile?.email || 'No email'}</ThemedText>
           
           <View style={styles.overallScoreContainer}>
             <View style={[styles.overallScoreCircle, { borderColor: overallScoreColor }]}>
               <ThemedText style={[styles.overallScoreText, { color: overallScoreColor }]}>
-                {userPhysique.overall}
+                {overallScore}
               </ThemedText>
             </View>
             <ThemedText style={styles.overallScoreLabel}>Overall Rating</ThemedText>
+            <ThemedText style={styles.allTimeHighLabel}>All Time High</ThemedText>
           </View>
         </View>
         
         <View style={styles.physiqueContainer}>
           <View style={styles.physiqueHeader}>
-            <ThemedText type="subtitle" style={styles.sectionTitle}>Physique Rating</ThemedText>
+            <ThemedText type="subtitle" style={styles.sectionTitle}>All Time Highs</ThemedText>
             <View style={[styles.physiqueTypeContainer, { backgroundColor: `${overallScoreColor}20` }]}>
               <ThemedText style={[styles.physiqueTypeText, { color: overallScoreColor }]}>
-                {userPhysique.type}
+                {physiqueType}
               </ThemedText>
             </View>
           </View>
           
           <View style={styles.ratingsContainer}>
-            {userPhysique.ratings.map((item, index) => (
-              <RatingBar key={index} name={item.name} rating={item.rating} />
-            ))}
+            {displayedMuscleGroups.length > 0 ? (
+              displayedMuscleGroups.map(([muscleGroup, score], index) => (
+                <RatingBar 
+                  key={index} 
+                  name={getDisplayName(muscleGroup)} 
+                  rating={score} 
+                />
+              ))
+            ) : (
+              <View style={styles.noDataContainer}>
+                <ThemedText style={styles.noDataText}>
+                  No physique data yet. Take your first photo to see your all-time highs!
+                </ThemedText>
+              </View>
+            )}
           </View>
         </View>
         
@@ -213,6 +342,12 @@ const styles = StyleSheet.create({
   overallScoreLabel: {
     fontSize: 14,
     opacity: 0.7,
+  },
+  allTimeHighLabel: {
+    fontSize: 12,
+    opacity: 0.5,
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   sectionTitle: {
     fontSize: 20,
@@ -296,5 +431,19 @@ const styles = StyleSheet.create({
   logoutButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noDataContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noDataText: {
+    fontSize: 16,
+    opacity: 0.7,
   },
 }); 

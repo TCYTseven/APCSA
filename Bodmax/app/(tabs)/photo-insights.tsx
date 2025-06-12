@@ -10,6 +10,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { dataStore } from '@/lib/dataStore';
+import type { UserMetadata } from '@/lib/physiqueAnalysisService';
+import { physiqueAnalysisService } from '@/lib/physiqueAnalysisService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -20,17 +23,96 @@ export default function PhotoInsightsScreen() {
   const [countdownNumber, setCountdownNumber] = useState(0);
   const [showCamera, setShowCamera] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isCameraReady, setIsCameraReady] = useState(false);
   const cameraRef = useRef<CameraView>(null);
   const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const navigation = useNavigation();
 
+  // Helper function to analyze physique
+  const analyzePhysique = async (imageUri: string) => {
+    try {
+      setIsAnalyzing(true);
+      
+      // Get user profile data
+      const userProfile = await dataStore.getUserProfile();
+      if (!userProfile) {
+        throw new Error('User profile not found. Please complete onboarding first.');
+      }
+
+      // Prepare user metadata
+      const userMetadata: UserMetadata = {
+        height: userProfile.height,
+        weight: userProfile.weight,
+        gender: userProfile.gender,
+        desiredPhysique: userProfile.desired_physique,
+        previousScores: {}, // Empty object - let AI score objectively without bias
+      };
+
+      // Call the analysis service - try real API first, fallback to mock
+      console.log('🔄 Attempting physique analysis...');
+      let result;
+      try {
+        // Try real API first
+        result = await physiqueAnalysisService.analyzePhysique({
+          imageUri,
+          userMetadata,
+        });
+      } catch (error) {
+        console.log('⚠️ Real API failed, falling back to mock analysis:', error);
+        result = await physiqueAnalysisService.mockAnalyzePhysique({
+          imageUri,
+          userMetadata,
+        });
+      }
+
+      if ('error' in result) {
+        throw new Error((result as any).details || result.error);
+      }
+
+      // Save the analysis result
+      console.log('💾 Saving physique record...');
+      const savedRecord = await dataStore.savePhysiqueRecord({
+        userId: userProfile.id,
+        imageUri,
+        scores: result.scores,
+        identifiedParts: result.identifiedParts,
+        advice: result.advice,
+      });
+      console.log('✅ Physique record saved:', savedRecord);
+
+      // Navigate to insights with success
+      console.log('🧭 Navigating to insights page...');
+      router.push('/insights');
+      
+    } catch (error) {
+      console.error('Physique analysis error:', error);
+      Alert.alert(
+        'Analysis Failed',
+        error instanceof Error ? error.message : 'Unable to analyze the image. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   // Define capturePhoto function before it's used in countdown effect
   const capturePhoto = async () => {
-    if (!cameraRef.current || isCapturing) return;
+    if (!cameraRef.current || isCapturing || !isCameraReady) return;
     
     try {
       setIsCapturing(true);
+      
+      // Wait a bit longer to ensure camera is fully ready
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Check if camera ref is still available after delay
+      if (!cameraRef.current) {
+        throw new Error('Camera is not available');
+      }
+      
       const photo = await cameraRef.current.takePictureAsync({
         quality: 1,
         base64: false,
@@ -38,11 +120,11 @@ export default function PhotoInsightsScreen() {
       });
       
       if (photo) {
-        // Photo captured successfully, navigate to insights
+        // Photo captured successfully, analyze it
         setShowCamera(false);
         setIsCapturing(false);
         
-        // Restore tab bar before navigating
+        // Restore tab bar before analyzing
         const parent = navigation.getParent();
         if (parent) {
           parent.setOptions({
@@ -56,12 +138,28 @@ export default function PhotoInsightsScreen() {
           tabBarVisible: true,
         });
         
-        router.push('/insights');
+        // Analyze the captured photo
+        await analyzePhysique(photo.uri);
       }
     } catch (error) {
       console.error('Error taking photo:', error);
       Alert.alert('Error', 'Failed to capture photo. Please try again.');
       setIsCapturing(false);
+      setShowCamera(false);
+      
+      // Restore tab bar on error
+      const parent = navigation.getParent();
+      if (parent) {
+        parent.setOptions({
+          tabBarStyle: undefined,
+          tabBarVisible: true,
+        });
+      }
+      
+      navigation.setOptions({
+        tabBarStyle: undefined,
+        tabBarVisible: true,
+      });
     }
   };
 
@@ -127,7 +225,8 @@ export default function PhotoInsightsScreen() {
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      router.push('/insights');
+      // Analyze the selected image
+      await analyzePhysique(result.assets[0].uri);
     }
   };
 
@@ -160,15 +259,21 @@ export default function PhotoInsightsScreen() {
     });
 
     setShowCamera(true);
-
-    // Show timer countdown if needed
-    if (timerDuration > 0) {
-      setIsCountingDown(true);
-      setCountdownNumber(timerDuration);
-    } else {
-      // Take photo immediately
-      setTimeout(() => capturePhoto(), 500); // Small delay to let camera initialize
-    }
+    setIsCameraReady(false); // Reset camera ready state
+    
+    // Wait for camera to initialize before allowing capture
+    setTimeout(() => {
+      setIsCameraReady(true);
+      
+      // Show timer countdown if needed
+      if (timerDuration > 0) {
+        setIsCountingDown(true);
+        setCountdownNumber(timerDuration);
+      } else {
+        // Take photo immediately after camera is ready
+        setTimeout(() => capturePhoto(), 1000); // Give camera more time to initialize
+      }
+    }, 2000); // Wait 2 seconds for camera to fully initialize
   };
 
   const toggleTimer = () => {
@@ -189,6 +294,7 @@ export default function PhotoInsightsScreen() {
     setIsCountingDown(false);
     setCountdownNumber(0);
     setShowCamera(false);
+    setIsCameraReady(false);
     
     // Restore tab bar immediately
     const parent = navigation.getParent();
@@ -209,6 +315,7 @@ export default function PhotoInsightsScreen() {
     setShowCamera(false);
     setIsCountingDown(false);
     setCountdownNumber(0);
+    setIsCameraReady(false);
     
     // Restore tab bar immediately
     const parent = navigation.getParent();
@@ -241,7 +348,8 @@ export default function PhotoInsightsScreen() {
                 <Ionicons name="close" size={30} color="white" />
               </TouchableOpacity>
               <ThemedText style={styles.cameraTitle}>
-                {isCountingDown ? `Taking photo in ${countdownNumber}...` : 'Position yourself'}
+                {isCountingDown ? `Taking photo in ${countdownNumber}...` : 
+                 !isCameraReady ? 'Camera loading...' : 'Position yourself'}
               </ThemedText>
               <TouchableOpacity onPress={toggleCamera} style={styles.flipButton}>
                 <Ionicons name="camera-reverse" size={30} color="white" />
@@ -259,10 +367,15 @@ export default function PhotoInsightsScreen() {
 
             {/* Bottom bar */}
             <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 20 }]}>
-              {!isCountingDown && !isCapturing && (
+              {!isCountingDown && !isCapturing && isCameraReady && (
                 <TouchableOpacity onPress={capturePhoto} style={styles.captureButton}>
                   <View style={styles.captureButtonInner} />
                 </TouchableOpacity>
+              )}
+              {!isCountingDown && !isCapturing && !isCameraReady && (
+                <View style={[styles.captureButton, { opacity: 0.5 }]}>
+                  <View style={styles.captureButtonInner} />
+                </View>
               )}
               {isCountingDown && (
                 <TouchableOpacity onPress={cancelCountdown} style={styles.cancelButton}>
@@ -304,8 +417,9 @@ export default function PhotoInsightsScreen() {
 
         {/* Camera Area */}
         <TouchableOpacity 
-          style={styles.cameraArea} 
+          style={[styles.cameraArea, isAnalyzing && styles.disabledButton]} 
           onPress={startCamera}
+          disabled={isAnalyzing}
         >
           <LinearGradient
             colors={['rgba(136, 68, 238, 0.1)', 'rgba(136, 68, 238, 0.05)']}
@@ -347,17 +461,31 @@ export default function PhotoInsightsScreen() {
 
         {/* Gallery Button */}
         <TouchableOpacity 
-          style={styles.galleryButton} 
+          style={[styles.galleryButton, isAnalyzing && styles.disabledButton]} 
           onPress={pickImage}
+          disabled={isAnalyzing}
         >
           <LinearGradient
-            colors={['#8844ee', '#6622cc']}
+            colors={isAnalyzing ? ['#666', '#444'] : ['#8844ee', '#6622cc']}
             style={styles.gradient}
           >
-            <Ionicons name="images" size={24} color="white" style={styles.buttonIcon} />
-            <ThemedText style={styles.buttonText}>Choose from Gallery</ThemedText>
+            <Ionicons 
+              name={isAnalyzing ? "hourglass" : "images"} 
+              size={24} 
+              color="white" 
+              style={styles.buttonIcon} 
+            />
+            <ThemedText style={styles.buttonText}>
+              {isAnalyzing ? 'Analyzing...' : 'Choose from Gallery'}
+            </ThemedText>
           </LinearGradient>
         </TouchableOpacity>
+
+        {isAnalyzing && (
+          <ThemedText style={styles.analyzingText}>
+            🧠 AI is analyzing your physique...
+          </ThemedText>
+        )}
       </View>
     </ThemedView>
   );
@@ -539,5 +667,15 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  analyzingText: {
+    textAlign: 'center',
+    marginTop: 16,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    fontStyle: 'italic',
   },
 }); 
